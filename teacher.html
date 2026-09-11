@@ -323,14 +323,14 @@ function renderBanner(R, clock) {
 
 function progressHtml(o, ps) {
   if (!ps) return '';
-  const ic = ps.mode === 'truck' ? (ps.truck === 't2' ? '❄' : '🚚') : ps.mode ? MD.MODES[ps.mode].icon : '';
+  const ic = ps.mode === 'truck' ? E.truckIcon(ps.truck) : ps.mode ? MD.MODES[ps.mode].icon : '';
   switch (ps.st) {
     case 'transit': return `<div class="prog"><i style="width:${(ps.frac * 100).toFixed(1)}%"></i></div><div class="ps"><span>${ic} 배송 중</span><span class="num">도착 ${E.fmtTime(ps.arrive)}</span></div>`;
     case 'delivered': return `<div class="prog"><i style="width:100%;background:var(--good)"></i></div><div class="ps good"><span>✅ 정시 배송</span><span class="num">${E.fmtTime(ps.arrive)}</span></div>`;
     case 'late': return `<div class="prog"><i style="width:100%;background:var(--bad)"></i></div><div class="ps bad"><span>⚠ 지연 도착</span><span class="num">${E.fmtTime(ps.arrive)}</span></div>`;
     case 'abandoned': return `<div class="ps bad"><span>❌ 포기</span></div>`;
     case 'stored': return `<div class="ps muted"><span>📦 보관(이월)</span></div>`;
-    case 'loaded': return `<div class="prog"><i style="width:0"></i></div><div class="ps muted"><span>${ps.truck === 't2' ? '❄' : '🚚'} 적재 중 · 출발 대기</span></div>`;
+    case 'loaded': return `<div class="prog"><i style="width:0"></i></div><div class="ps muted"><span>${E.truckIcon(ps.truck)} 적재 중 · 출발 대기</span></div>`;
     default: return `<div class="prog"><i style="width:0"></i></div><div class="ps muted"><span>⏳ 배차 대기</span></div>`;
   }
 }

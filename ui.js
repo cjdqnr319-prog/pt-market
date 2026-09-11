@@ -169,7 +169,7 @@
           let pts, frac, icon;
           if (d.mode === 'truck') {
             if (clock < d.depart || clock >= d.effRet) return;
-            pts = r.truck; icon = d.truck === 't2' ? '❄' : '🚚';
+            pts = r.truck; icon = E.truckIcon(d.truck);
             frac = clock < d.effArrive ? (clock - d.depart) / (d.effArrive - d.depart) : 1 - (clock - d.effArrive) / (d.effRet - d.effArrive);
             const broken = popups.some(p => p.type === 'breakdown' && clock >= p.at && clock < p.until && E.arr(p.targets).some(t => t.g === G.id && t.truck === d.truck));
             if (broken) icon = '🔧';

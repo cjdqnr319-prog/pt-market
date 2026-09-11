@@ -28,6 +28,11 @@
     return m >= 60 ? Math.floor(m / 60) + '시간' + (m % 60 ? ' ' + (m % 60) + '분' : '') : m + '분';
   };
   E.uid = (p = '') => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // 트럭 키: n1,n2… 일반 / c1… 냉장
+  E.isCold = k => typeof k === 'string' && k[0] === 'c';
+  E.truckType = k => E.isCold(k) ? '냉장' : '일반';
+  E.truckIcon = k => E.isCold(k) ? '❄' : '🚚';
+  E.truckKeys = R => (R && R.fleet) || MD.FLEET_DEFAULT;
   E.clampStars = s => Math.max(MD.STARS.min, Math.min(MD.STARS.max, s));
 
   // ───────────────────────── 시계
@@ -89,7 +94,7 @@
     if (order.haz) return '위험물 트럭 불가';
     if (!MD.DEST[order.dest].road) return '도로 없음';
     if (order.ton > MD.MODES.truck.cap) return '10톤 초과';
-    if (order.cold && k !== 't2') return '냉장 화물';
+    if (order.cold && !E.isCold(k)) return '냉장 화물';
     return null;
   };
 
@@ -98,7 +103,7 @@
     const ctx = { snow, popups: [] };
     let best = null;
     const cand = [];
-    if (!E.truckFits(order, 't2')) {
+    if (!E.truckFits(order, 'c1')) {
       const q = E.quoteTruck(order.dest, order.t_in, ctx);
       if (q.ok) cand.push(Object.assign(q, { onTime: q.arrive <= order.deadline + EPS }));
     }
@@ -130,6 +135,7 @@
   // args: {room, g, rid, clock, finished}
   E.groupRound = ({ room, g, rid, clock, finished }) => {
     const R = MD.roundById(rid);
+    const TK = E.truckKeys(R);
     const gd = (room.groups && room.groups[g] && room.groups[g].rd && room.groups[g].rd[rid]) || {};
     const popups = E.popupList(room, rid);
     const ctx = { snow: R.snow, popups };
@@ -156,12 +162,12 @@
     // 주문별 상태
     const inDisp = {}; disps.forEach(d => d.oids.forEach(oid => { inDisp[oid] = d; }));
     const loads = {};
-    ['t1', 't2'].forEach(k => {
+    TK.forEach(k => {
       const oids = Object.keys((gd.load && gd.load[k]) || {}).filter(oid => byId[oid] && !inDisp[oid] && !(gd.ord && gd.ord[oid]));
       const tons = oids.reduce((s, oid) => s + byId[oid].ton, 0);
       loads[k] = { oids, tons, dest: oids.length ? byId[oids[0]].dest : null };
     });
-    const loadedIn = {}; ['t1', 't2'].forEach(k => loads[k].oids.forEach(oid => { loadedIn[oid] = k; }));
+    const loadedIn = {}; TK.forEach(k => loads[k].oids.forEach(oid => { loadedIn[oid] = k; }));
     const orders = owned.map(o => {
       const rec = gd.ord && gd.ord[o.id];
       let st = 'active';
@@ -173,7 +179,7 @@
 
     // 트럭 상태
     const trucks = {};
-    ['t1', 't2'].forEach(k => {
+    TK.forEach(k => {
       const mine = disps.filter(d => d.mode === 'truck' && d.truck === k);
       let freeAt = MD.TIME.OPEN;
       mine.forEach(d => { freeAt = Math.max(freeAt, d.effRet); });
@@ -187,7 +193,7 @@
       let status = 'idle', until = null;
       if (cur) { status = clock < cur.effArrive ? 'out' : 'return'; until = cur.effRet; }
       else if (brokenUntil) { status = 'broken'; until = brokenUntil; }
-      trucks[k] = { k, type: k === 't1' ? '일반' : '냉장', status, until, cur: cur || null, freeAt, trips: mine.length, load: loads[k] };
+      trucks[k] = { k, type: E.truckType(k), status, until, cur: cur || null, freeAt, trips: mine.length, load: loads[k] };
     });
 
     // 자원
@@ -195,7 +201,7 @@
     const loaded = orders.filter(o => o.st === 'loaded');
     const stored = orders.filter(o => o.st === 'stored');
     const pplUsed = disps.reduce((s, d) => s + (d.ppl || 0), 0);
-    const pplReserved = active.length + ['t1', 't2'].filter(k => loads[k].oids.length).length;
+    const pplReserved = active.length + TK.filter(k => loads[k].oids.length).length;
     const pplAvail = R.ppl - pplUsed - pplReserved;
     const spent = disps.reduce((s, d) => s + (d.cost || 0), 0) + stored.length * MD.STORE_COST;
     const budgetLeft = R.budget - spent;
@@ -330,7 +336,7 @@
     const ctx = gr.ctx;
     // 트럭: 맞는 트럭이 지금 대기 중(고장 X)이고, 적재 중이면 같은 목적지·용량 OK
     const truckWhy = [];
-    ['t1', 't2'].forEach(k => {
+    E.truckKeys(gr.R).forEach(k => {
       const why = E.truckFits(order, k);
       if (why) return;
       const tk = gr.trucks[k];
@@ -380,11 +386,11 @@
       pop.targets = pick(joined, n).map(g => {
         // 운행 중인 트럭을 우선 (실린 화물 지연 위험 연출)
         const gr = E.groupRound({ room, g, rid, clock, finished: false });
-        const busy = ['t1', 't2'].filter(k => gr.trucks[k].status === 'out');
-        const truck = busy.length ? pick(busy, 1)[0] : (rand() < 0.5 ? 't1' : 't2');
+        const busy = E.truckKeys(R).filter(k => gr.trucks[k].status === 'out');
+        const truck = busy.length ? pick(busy, 1)[0] : pick(E.truckKeys(R), 1)[0];
         return { g, truck };
       });
-      pop.desc = pop.targets.map(t => `${MD.groupById(t.g).no}모둠 ${t.truck === 't1' ? '일반' : '냉장'}`).join(' · ') + ' 트럭 1시간 정지!';
+      pop.desc = pop.targets.map(t => `${MD.groupById(t.g).no}모둠 ${E.truckType(t.truck)}`).join(' · ') + ' 트럭 1시간 정지!';
     } else if (type === 'roadblock') {
       const dests = {};
       E.marketList(room, rid).forEach(o => { if (o.t_in >= clock - 2 && MD.DEST[o.dest].road) dests[o.dest] = (dests[o.dest] || 0) + 1; });

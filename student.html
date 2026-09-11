@@ -73,7 +73,7 @@
   .recent div { padding: 3px 0; border-bottom: 1px dashed var(--line); }
   .empty { color: var(--dim); text-align: center; padding: 18px 8px; border: 1px dashed var(--line2); border-radius: 12px; }
   /* 트럭 */
-  .trow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .trow { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-bottom: 12px; }
   @media (max-width: 640px) { .trow { grid-template-columns: 1fr; } }
   .tk { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 14px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; }
   .tk.idle { border-color: rgba(34,197,94,.5); }
@@ -369,7 +369,7 @@ function notify(c) {
   const pops = E.popupList(room, rid);
   if (!seen.init) {
     vis.forEach(o => seen.vis.add(o.id)); evs.forEach(e => seen.ev.add(e.o.id)); pops.forEach(p => seen.pops.add(p.type + p.at));
-    ['t1', 't2'].forEach(k => { seen.trucks[k] = gr.trucks[k].status; });
+    E.truckKeys(gr.R).forEach(k => { seen.trucks[k] = gr.trucks[k].status; });
     seen.init = true; return;
   }
   let fresh = vis.filter(o => !seen.vis.has(o.id));
@@ -379,16 +379,16 @@ function notify(c) {
     if (e.type === 'ontime') { UI.sfx('good'); UI.toast(`✅ 정시 배송! ${esc(e.o.name)} <b class="good">+${e.amt}</b> ★${E.fmtStarDelta(e.star)}`, { color: '#22c55e' }); }
     else { UI.sfx('bad'); UI.toast(`⚠ 지연 배송 ${esc(e.o.name)} — 위약 ${e.pen} · ★${E.fmtStarDelta(e.star)}`, { color: '#ef4444' }); }
   });
-  ['t1', 't2'].forEach(k => {
+  E.truckKeys(gr.R).forEach(k => {
     const s = gr.trucks[k].status, p = seen.trucks[k];
-    if (p && p !== 'idle' && s === 'idle') { UI.sfx('ding'); UI.toast(`${k === 't1' ? '🚚 일반' : '❄ 냉장'} 트럭 복귀! 다시 배차할 수 있어요`, { color: '#22c55e' }); }
+    if (p && p !== 'idle' && s === 'idle') { UI.sfx('ding'); UI.toast(`${E.truckIcon(k)} ${E.truckType(k)} 트럭 복귀! 다시 배차할 수 있어요`, { color: '#22c55e' }); }
     seen.trucks[k] = s;
   });
   pops.forEach(p => {
     const key = p.type + p.at; if (seen.pops.has(key)) return; seen.pops.add(key);
     UI.sfx('alert');
     const mine = p.type === 'breakdown' && E.arr(p.targets).find(t => t.g === me.g);
-    if (mine) UI.modal(`<div style="text-align:center"><div style="font-size:70px">🔧</div><h3>우리 ${mine.truck === 't1' ? '일반' : '냉장'} 트럭 고장!</h3><div class="muted">1시간 동안 멈춥니다. 실린 화물은 1시간 늦어져요.<br>💡 급한 화물은 위탁으로 돌리세요.</div></div>`, [{ label: '확인', cls: 'primary', value: 1 }]);
+    if (mine) UI.modal(`<div style="text-align:center"><div style="font-size:70px">🔧</div><h3>우리 ${E.truckType(mine.truck)} 트럭 고장!</h3><div class="muted">1시간 동안 멈춥니다. 실린 화물은 1시간 늦어져요.<br>💡 급한 화물은 위탁으로 돌리세요.</div></div>`, [{ label: '확인', cls: 'primary', value: 1 }]);
     else UI.toast(`${p.icon} <b>${esc(p.title)}</b> — ${esc(p.desc)}<br><span class="muted">💡 ${esc(MD.POPUPS[p.type].tip)}</span>`, { ms: 6000 });
   });
 }
@@ -400,7 +400,7 @@ function patch(box, items) {
     let el = ex.get(it.key);
     if (!el) { el = document.createElement('div'); el.dataset.key = it.key; }
     else ex.delete(it.key);
-    const busy = el.contains(document.activeElement) && document.activeElement !== document.body;
+    const ae = document.activeElement; const busy = ae && el.contains(ae) && /^(INPUT|TEXTAREA)$/.test(ae.tagName);
     if (!busy && (el._h !== it.html || el._c !== it.cls)) { el.innerHTML = it.html; el._h = it.html; el.className = it.cls || ''; el._c = it.cls; }
     if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
   });
@@ -438,10 +438,10 @@ function renderHeader(c) {
   if ($('#hRow')._h !== hr) { $('#hRow').innerHTML = hr; $('#hRow')._h = hr; }
   let res = '';
   if (gr) {
-    ['t1', 't2'].forEach(k => {
+    E.truckKeys(gr.R).forEach(k => {
       const t = gr.trucks[k];
       const s = { idle: '대기', out: `배송 중 ~${fmt(t.until)}`, return: `복귀 중 ~${fmt(t.until)}`, broken: `🔧고장 ~${fmt(t.until)}` }[t.status];
-      res += `<div class="chip t-${t.status}">${k === 't1' ? '🚚 일반' : '❄ 냉장'} <b>${s}</b></div>`;
+      res += `<div class="chip t-${t.status}">${E.truckIcon(k)} ${E.truckType(k)} <b>${s}</b></div>`;
     });
     res += `<div class="chip ${gr.pplAvail < 1 ? 'low' : ''}">👷 인력 <b>${gr.pplAvail}</b>/${gr.pplTotal} <span class="dim">(사용 ${gr.pplUsed}·예약 ${gr.pplReserved})</span></div>`;
     res += `<div class="chip ${gr.budgetLeft < 60 ? 'low' : ''}">💵 예산 <b>${gr.budgetLeft}</b>/${gr.budget}</div>`;
@@ -501,7 +501,7 @@ function renderMarket(c) {
 function quoteList(o, c) {
   const ctx = { snow: c.R.snow, popups: E.popupList(room, c.rid) };
   const rows = [];
-  if (!E.truckFits(o, 't2')) { const q = E.quoteTruck(o.dest, c.clock, ctx); rows.push(`🚚 트럭 ${q.cost} · 도착 ${fmt(q.arrive)} ${q.arrive <= o.deadline + EPS ? '✓' : '⚠지연'}`); }
+  if (!E.truckFits(o, 'c1')) { const q = E.quoteTruck(o.dest, c.clock, ctx); rows.push(`🚚 트럭 ${q.cost} · 도착 ${fmt(q.arrive)} ${q.arrive <= o.deadline + EPS ? '✓' : '⚠지연'}`); }
   ['rail', 'sea', 'air'].forEach(m => { const q = E.quoteConsign(o, m, c.clock, ctx); rows.push(q.ok ? `${MD.MODES[m].icon} ${MD.MODES[m].label} ${q.cost} · 도착 ${fmt(q.arrive)} ${q.onTime ? '✓' : '⚠지연'}` : `<span class="dim">${MD.MODES[m].icon} ${q.reason}</span>`); });
   return `<div class="quotes">${rows.join('<br>')}</div>`;
 }
@@ -512,7 +512,7 @@ function renderDesk(c) {
   if (!gr) { patch($('#trucks'), []); patch($('#transit'), []); patch($('#olist'), []); patch($('#log'), []); $('#tips').innerHTML = ''; return; }
   const tips = R.tutorial ? `<div class="tips">🎓 <b>튜토리얼</b> — ① 왼쪽 시장에서 <b>[수락]</b> ② 주문 카드에서 <b>트럭에 싣기</b>(같은 목적지는 합적!) 또는 <b>철도·선박·항공 위탁</b> ③ 트럭 카드의 <b>[출발]</b>. 마감 전에 도착하면 ★+0.1!</div>` : '';
   if ($('#tips')._h !== tips) { $('#tips').innerHTML = tips; $('#tips')._h = tips; }
-  patch($('#trucks'), ['t1', 't2'].map(k => ({ key: k, cls: 'tk ' + gr.trucks[k].status, html: truckHtml(k, gr, clock, running) })));
+  patch($('#trucks'), E.truckKeys(gr.R).map(k => ({ key: k, cls: 'tk ' + gr.trucks[k].status, html: truckHtml(k, gr, clock, running) })));
   const tr = transitItems(gr, clock);
   $('#trSum').textContent = tr.length ? `${tr.length}편 이동 중` : '지금 움직이는 화물 없음';
   patch($('#transit'), tr.length ? tr : [{ key: 'e', html: '<div class="empty">출발한 화물이 여기에 진행 바로 표시돼요</div>' }]);
@@ -530,7 +530,7 @@ function truckHtml(k, gr, clock, running) {
     : tk.status === 'broken' ? `<span class="bad">🔧 고장 · ${fmt(tk.until)}까지</span>`
     : '<span class="good">🟢 대기 중</span>';
   const pct = Math.min(100, ld.tons / MD.MODES.truck.cap * 100);
-  let h = `<div class="th"><b>${k === 't1' ? '🚚 일반 트럭' : '❄ 냉장 트럭'}</b><span class="ts">${st}</span></div>
+  let h = `<div class="th"><b>${E.truckIcon(k)} ${E.truckType(k)} 트럭</b><span class="ts">${st}</span></div>
     <div class="gauge"><i style="width:${pct}%;${pct > 99 ? 'background:var(--bad)' : ''}"></i></div>
     <div class="muted" style="font-size:13px">적재 <b>${ld.tons}</b>/10톤${ld.dest ? ` · <b style="color:var(--text)">${esc(ld.dest)}행</b>` : ''} · 오늘 ${tk.trips}회 운행</div>
     <div class="ldchips">${ld.oids.length ? ld.oids.map(id => { const o = gr.byId[id]; return `<span class="ldc">${esc(o.name)} ${o.ton}t <button data-act="unload" data-id="${id}" data-k="${k}" title="내리기(되돌리기)">✕</button></span>`; }).join('') : `<span class="dim" style="font-size:13px">비어 있음 — 주문 카드에서 [싣기]</span>`}</div>`;
@@ -559,11 +559,11 @@ function orderHtml(o, gr, clock, running, R) {
   const btns = [];
   let bestCost = Infinity;
   // 트럭 싣기
-  ['t1', 't2'].forEach(k => {
+  E.truckKeys(gr.R).forEach(k => {
     const why0 = E.truckFits(o, k);
     if (why0 === '냉장 화물') return; // 일반 트럭 버튼 자체를 숨김
     const tk = gr.trucks[k], ld = tk.load;
-    const nm = k === 't1' ? '🚚 일반 트럭' : '❄ 냉장 트럭';
+    const nm = `${E.truckIcon(k)} ${E.truckType(k)} 트럭`;
     let why = why0;
     if (!why && ld.oids.length && ld.dest !== o.dest) why = `${ld.dest}행 적재 중`;
     if (!why && ld.tons + o.ton > MD.MODES.truck.cap + EPS) why = `적재 초과 (${ld.tons}+${o.ton}>10)`;
@@ -608,7 +608,7 @@ function transitItems(gr, clock) {
     const end = isTruck ? d.effRet : d.effArrive;
     if (clock < d.depart - EPS || clock >= end - EPS) return;
     const M = MD.MODES[d.mode];
-    const ic = isTruck ? (d.truck === 't2' ? '❄' : '🚚') : M.icon;
+    const ic = isTruck ? E.truckIcon(d.truck) : M.icon;
     const names = d.oids.map(id => esc(gr.byId[id].name)).join(', ');
     const returning = isTruck && clock >= d.effArrive - EPS;
     const dlMax = Math.max(...d.oids.map(id => gr.byId[id].deadline));
@@ -648,7 +648,7 @@ function logItems(gr, clock) {
     const names = d.oids.map(id => esc(gr.byId[id].name));
     let rs;
     rs = d.oids.map(id => { const e = gr.events.find(x => x.o && x.o.id === id && (x.type === 'ontime' || x.type === 'late')); return e ? (e.type === 'ontime' ? `<span class="good">✅ +${e.amt}</span>` : `<span class="bad">⚠ 지연 ${Math.ceil(e.lateH - EPS)}h +${e.amt}</span>`) : ''; }).join('<br>');
-    items.push({ key: d.id, cls: 'lg', html: `<span class="ic">${d.mode === 'truck' && d.truck === 't2' ? '❄' : M.icon}</span><div class="tx"><b>${esc(d.dest)}</b> · ${names.join(', ')}<br><span class="muted">${M.label}${d.mode === 'truck' ? (d.truck === 't1' ? '(일반)' : '(냉장)') : ''} · 출발 ${fmt(d.depart)} → 도착 ${fmt(d.effArrive)} · 비용 ${d.cost}</span></div><div class="rs">${rs}</div>` });
+    items.push({ key: d.id, cls: 'lg', html: `<span class="ic">${d.mode === 'truck' ? E.truckIcon(d.truck) : M.icon}</span><div class="tx"><b>${esc(d.dest)}</b> · ${names.join(', ')}<br><span class="muted">${M.label}${d.mode === 'truck' ? '(' + E.truckType(d.truck) + ')' : ''} · 출발 ${fmt(d.depart)} → 도착 ${fmt(d.effArrive)} · 비용 ${d.cost}</span></div><div class="rs">${rs}</div>` });
   });
   gr.orders.filter(o => o.st === 'abandoned' || o.st === 'stored').forEach(o => {
     items.push({ key: 'x' + o.id, cls: 'lg', html: `<span class="ic">${o.st === 'stored' ? '📦' : '❌'}</span><div class="tx"><b>${esc(o.dest)}</b> · ${esc(o.name)}<br><span class="muted">${o.st === 'stored' ? '보관(이월) — 내일 이어서 처리' : '수락 후 포기'} · ${fmt(o.rec.at)}</span></div><div class="rs ${o.st === 'stored' ? '' : 'bad'}">${o.st === 'stored' ? '−' + MD.STORE_COST : '−' + Math.round(o.price * MD.ABANDON_RATE) + ' ★−1'}</div>` });
@@ -758,7 +758,7 @@ const act = {
       ['load/' + k]: null,
     });
     UI.sfx('depart');
-    UI.toast(`🚀 ${k === 't1' ? '일반' : '냉장'} 트럭 출발! ${esc(t2.load.dest)}행 ${t2.load.oids.length}건 · 도착 ${fmt(q.arrive)}`, { color: UI.gColor(me.g) });
+    UI.toast(`🚀 ${E.truckType(k)} 트럭 출발! ${esc(t2.load.dest)}행 ${t2.load.oids.length}건 · 도착 ${fmt(q.arrive)}`, { color: UI.gColor(me.g) });
   },
   async consign(id, _k, m) {
     let c = ctxNow(); const o = c.gr.byId[id]; const M = MD.MODES[m];
@@ -820,6 +820,7 @@ const act = {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b || b.disabled) return;
+  b.blur();
   const f = act[b.dataset.act];
   if (f) f(b.dataset.id, b.dataset.k, b.dataset.m);
 });

@@ -37,6 +37,9 @@
     sea:   { key: 'sea',   icon: '🚢', label: '선박 위탁', speed: 30, extra: 3,   perKm: 0.25, base: 50, cold: 10, ppl: 2 },
     air:   { key: 'air',   icon: '✈️', label: '항공 위탁', speed: 600, extra: 3.5, perKm: 1.2, base: 70, cold: 0,  ppl: 1, maxTon: 3 },
   };
+  // 트럭 편성: n = 일반, c = 냉장. 라운드에 fleet 를 주면 그 라운드만 다르게
+  const FLEET_DEFAULT = ['n1', 'c1'];
+  const fleetLabel = f => { const n = f.filter(k => k[0] === 'n').length, c = f.length - n; return `일반${n}·냉장${c}`; };
   const STORE_COST = 20;          // 보관(이월)
   const ABANDON_RATE = 0.3;       // 수락 후 포기 위약 30%
   const LATE_RATE = 0.1;          // 지연 위약 배송료 10%/h
@@ -86,7 +89,7 @@
   const ROUNDS = [
     {
       id: 'R0', name: 'R0 튜토리얼', short: '튜토리얼', tutorial: true, snow: false,
-      secPerHour: 10, ppl: 6, budget: 800, trucks: '일반1·냉장1', storage: false, popupTimes: [],
+      secPerHour: 10, ppl: 6, budget: 800, storage: false, popupTimes: [],
       story: '조작을 익히는 연습 하루(3분). 돌발·VIP 없음, 기록되지 않습니다.',
       orders: [
         { t_in: 6,  name: '편의점 음료 2톤',   dest: '서울', ton: 2,  cold: false, haz: false, deadline: 12, fee: 126, vip: false },
@@ -99,7 +102,7 @@
     },
     {
       id: 'R1', name: 'R1 평일', short: '평일', snow: false,
-      secPerHour: 20, ppl: 6, budget: 800, trucks: '일반1·냉장1', storage: true, popupTimes: [10, 14.5],
+      secPerHour: 20, ppl: 6, budget: 800, storage: true, popupTimes: [10, 14.5],
       story: '평범한 하루. 인력 여유가 있으니 합적·트럭 회전을 잘하는 회사가 앞선다.',
       orders: [
         {t_in: 6, name: "급식 냉동만두", dest: "대전", ton: 3, cold: true, haz: false, deadline: 12, fee: 200, vip: false, best: "truck", best_profit: 135},
@@ -136,7 +139,7 @@
     },
     {
       id: 'R2', name: 'R2 명절 전날', short: '명절 전날', snow: false,
-      secPerHour: 20, ppl: 6, budget: 900, trucks: '일반1·냉장1', storage: true, popupTimes: [9.5, 13.5],
+      secPerHour: 20, ppl: 6, budget: 900, storage: true, popupTimes: [9.5, 13.5],
       story: '주문 40건! 인력(편수)보다 주문이 많다 — 다 못 잡는다. 선택과 포기.',
       orders: [
         {t_in: 6, name: "한우 세트", dest: "대전", ton: 2, cold: true, haz: false, deadline: 13, fee: 260, vip: false, best: "truck", best_profit: 195},
@@ -183,7 +186,7 @@
     },
     {
       id: 'R3', name: 'R3 폭설', short: '폭설', snow: true,
-      secPerHour: 20, ppl: 7, budget: 1000, trucks: '일반1·냉장1', storage: false, popupTimes: [10, 15],
+      secPerHour: 20, ppl: 7, budget: 1000, storage: false, popupTimes: [10, 15],
       story: '❄ 폭설! 트럭 속도 40km/h, 항공 결항. 트럭 회전이 느려져 시간이 병목 — 철도의 가치 급등.',
       orders: [
         {t_in: 6, name: "생수 9톤", dest: "서울", ton: 9, cold: false, haz: false, deadline: 16, fee: 220, vip: false, best: "truck", best_profit: 170},
@@ -220,11 +223,12 @@
     },
   ];
 
-  // 주문 id 부여
+  // 주문 id 부여 · 트럭 편성 라벨
+  ROUNDS.forEach(r => { r.fleet = r.fleet || FLEET_DEFAULT; r.trucks = fleetLabel(r.fleet); });
   ROUNDS.forEach(r => r.orders.forEach((o, i) => { o.id = r.id + '-' + String(i + 1).padStart(2, '0'); }));
 
   global.MD = {
-    DEST, ORIGIN, TIME, MODES, STORE_COST, ABANDON_RATE, LATE_RATE, ACTIVE_LIMIT,
+    DEST, ORIGIN, TIME, MODES, FLEET_DEFAULT, fleetLabel, STORE_COST, ABANDON_RATE, LATE_RATE, ACTIVE_LIMIT,
     weightFactor, STARS, starMultiplier, GROUPS, POPUPS, POPUP_DECK, ROUNDS,
     roundById: id => ROUNDS.find(r => r.id === id),
     groupById: id => GROUPS.find(g => g.id === id),
