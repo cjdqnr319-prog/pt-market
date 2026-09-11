@@ -141,7 +141,7 @@ market/{round}/{orderId}: { ...order, status: open|taken|vip|expired|cancelled, 
 popups/{round}/{key}:     { type, at, until, title, desc, targets|dest|oids|src }
 groups/{g1..g6}: { name, pin, joinedAt,
   rd/{round}: { disp/{id}: {mode, truck, dest, oids[], depart, arrive, ret, cost, ppl},
-                load/{t1|t2}/{orderId}: true,       // 출발 전 트럭 적재 (되돌리기 가능)
+                load/{n1|n2|c1}/{orderId}: true,       // 출발 전 트럭 적재 (되돌리기 가능)
                 ord/{orderId}: {st: abandoned|stored, at},
                 memo } }
 ```
@@ -149,4 +149,4 @@ groups/{g1..g6}: { name, pin, joinedAt,
 - 호스트 작업(폐장·돌발·VIP 판정)은 교사 화면에서 트랜잭션으로 실행되어, 교사 화면을 두 개 띄워도 중복 실행되지 않습니다.
 
 ## 7. 밸런스 조정
-`market-data.js`에서 라운드별 `secPerHour`(속도), `ppl`, `budget`, `popupTimes`, 주문 목록, `STARS`, `ACTIVE_LIMIT` 등을 바꾸면 바로 반영됩니다.
+`market-data.js`에서 트럭 편성(`FLEET_DEFAULT` 또는 라운드별 `fleet`, n=일반·c=냉장), 라운드별 `secPerHour`(속도), `ppl`, `budget`, `popupTimes`, 주문 목록, `STARS`, `ACTIVE_LIMIT` 등을 바꾸면 바로 반영됩니다.

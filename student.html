@@ -675,7 +675,7 @@ function renderOverlay(c) {
 function waitHtml() {
   const G = MD.groupById(me.g);
   return `<div class="ov"><div class="in" style="text-align:center;padding-top:10vh"><div style="font-size:80px">🎛️</div><h1>${G.no}모둠 ${esc((room.groups[me.g] || {}).name || '')} 입장 완료!</h1><div class="sub">선생님이 곧 하루를 준비합니다. 전자칠판을 보세요.</div>
-    <div class="card" style="text-align:left;line-height:1.9">🚚 트럭 일반1·냉장1 — 같은 목적지는 합적(≤10톤), 왕복 후 다시 사용<br>🚆 철도(18시 막차) · 🚢 선박(인력 2명) · ✈️ 항공(≤3톤, 폭설 결항)<br>👷 배차 1편 = 인력 1명 · 📥 동시에 최대 4건까지<br>⭐ VIP는 10초 역경매 — 가장 싸게 부른 회사가 낙찰<br>정시 ★+0.1 · 지연 ★−0.3(+위약 10%/h) · 포기 ★−1(위약 30%)</div>${SOLO ? '<div class="muted">아래 오프라인 바에서 라운드를 고르세요</div>' : ''}</div></div>`;
+    <div class="card" style="text-align:left;line-height:1.9">🚚 트럭 일반2·냉장1 — 같은 목적지는 합적(≤10톤), 왕복 후 다시 사용<br>🚆 철도(18시 막차) · 🚢 선박(인력 2명) · ✈️ 항공(≤3톤, 폭설 결항)<br>👷 배차 1편 = 인력 1명 · 📥 동시에 최대 4건까지<br>⭐ VIP는 10초 역경매 — 가장 싸게 부른 회사가 낙찰<br>정시 ★+0.1 · 지연 ★−0.3(+위약 10%/h) · 포기 ★−1(위약 30%)</div>${SOLO ? '<div class="muted">아래 오프라인 바에서 라운드를 고르세요</div>' : ''}</div></div>`;
 }
 function readyHtml(R, gr) {
   const carried = gr ? gr.orders.filter(o => o.carried) : [];
