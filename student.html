@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>우리 회사 관제실 · 평택 물류 관제실</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { overflow: hidden; }
+  /* 입장 */
+  .jwrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+  .jcard { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 26px; }
+  .jcard h1 { margin: 0 0 4px; font-size: 26px; }
+  .jcard label { display: block; margin: 16px 0 6px; font-weight: 700; color: var(--muted); }
+  .jcard input { width: 100%; font-size: 22px; padding: 12px; }
+  .jrow { display: flex; gap: 8px; }
+  .gpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .gpick button { border: 2px solid var(--line2); background: var(--bg2); border-radius: 12px; padding: 12px 8px; text-align: left; min-height: 64px; }
+  .gpick button b { color: var(--gc); font-size: 17px; }
+  .gpick button small { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .gpick button.sel { border-color: var(--gc); background: var(--gsoft); }
+  #jErr { min-height: 22px; margin-top: 10px; font-weight: 700; }
+  /* 메인 */
+  #main { display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh; }
+  #hd { background: linear-gradient(#121a25, #0d131b); border-bottom: 1px solid var(--line); padding: 8px 12px; }
+  .hrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .co { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; }
+  .co .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--gc); box-shadow: 0 0 10px var(--gc); }
+  .kv { display: flex; flex-direction: column; line-height: 1.1; }
+  .kv small { color: var(--muted); font-size: 11px; }
+  .kv b { font-size: 19px; }
+  .kv .star { color: var(--vip); }
+  .clk { margin-left: auto; text-align: right; line-height: 1; }
+  .clk b { font-size: 34px; color: var(--accent); font-weight: 900; }
+  .clk small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .res { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px 9px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .chip b { font-size: 15px; }
+  .chip.t-idle { border-color: rgba(34,197,94,.55); }
+  .chip.t-out, .chip.t-return { border-color: rgba(59,130,246,.6); }
+  .chip.t-broken { border-color: var(--bad); animation: blink 1s infinite; }
+  .chip.low { border-color: var(--bad); color: #fca5a5; }
+  #popbar:empty { display: none; }
+  #popbar { padding: 6px 12px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pb { background: linear-gradient(90deg, rgba(255,122,26,.25), rgba(255,122,26,.05)); border: 1px solid var(--accent); border-radius: 10px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+  .pb.me { border-color: var(--bad); background: rgba(239,68,68,.18); animation: blink 1.2s infinite; }
+  .pausebar { background: var(--warn); color: #1a1000; text-align: center; font-weight: 900; padding: 5px; }
+  .body { display: grid; grid-template-columns: minmax(290px, 33%) 1fr; min-height: 0; }
+  @media (max-width: 880px) { body { overflow: auto; } #main { height: auto; min-height: 100vh; } .body { grid-template-columns: 1fr; } #mkt { border-right: none !important; border-bottom: 1px solid var(--line); max-height: none !important; } }
+  #mkt { overflow: auto; border-right: 1px solid var(--line); padding: 10px; background: var(--bg2); }
+  #desk { overflow: auto; padding: 10px 12px 30px; }
+  h3.sec { margin: 6px 2px 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  h3.sec small { color: var(--muted); font-weight: 600; }
+  /* 시장 카드 */
+  .oc { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 12px; padding: 10px 11px; margin-bottom: 8px; animation: pop .35s; }
+  .oc.can { border-color: var(--accent); }
+  .oc.vipc { border-color: var(--vip); background: linear-gradient(160deg, rgba(251,191,36,.16), var(--panel) 70%); }
+  .oc .r1 { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .oc .dest { font-size: 19px; font-weight: 900; }
+  .oc .fee { margin-left: auto; font-size: 18px; font-weight: 900; color: #ffd8b8; }
+  .oc .nm { font-weight: 600; color: #cbd5e1; margin: 2px 0; }
+  .oc .r3 { font-size: 13px; color: var(--muted); }
+  .oc .hint { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .oc .act { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+  .oc .act .btn { flex: 1; min-height: 44px; font-size: 16px; }
+  .why { font-size: 13px; color: #fca5a5; }
+  .urgent { color: var(--bad) !important; font-weight: 800; animation: blink 1s infinite; }
+  .cd { font-size: 22px; font-weight: 900; color: var(--vip); }
+  .bidrow { display: flex; gap: 6px; margin-top: 8px; }
+  .bidrow input { width: 100%; font-size: 20px; padding: 8px; text-align: center; }
+  .quotes { margin-top: 6px; font-size: 13px; background: var(--bg2); border-radius: 8px; padding: 6px 8px; line-height: 1.7; }
+  .recent { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .recent div { padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .empty { color: var(--dim); text-align: center; padding: 18px 8px; border: 1px dashed var(--line2); border-radius: 12px; }
+  /* 트럭 */
+  .trow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 640px) { .trow { grid-template-columns: 1fr; } }
+  .tk { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 14px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .tk.idle { border-color: rgba(34,197,94,.5); }
+  .tk.out, .tk.return { border-color: rgba(59,130,246,.55); }
+  .tk.broken { border-color: var(--bad); }
+  .tk .th { display: flex; justify-content: space-between; align-items: baseline; }
+  .tk .th b { font-size: 17px; }
+  .tk .ts { font-size: 13px; font-weight: 700; }
+  .ldchips { display: flex; flex-wrap: wrap; gap: 5px; min-height: 30px; }
+  .ldc { display: inline-flex; align-items: center; gap: 5px; background: var(--panel3); border-radius: 8px; padding: 4px 4px 4px 8px; font-size: 13px; font-weight: 600; }
+  .ldc button { border: none; background: rgba(239,68,68,.2); color: #fca5a5; border-radius: 6px; width: 28px; height: 26px; font-weight: 900; }
+  .tk .pv { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .tk .go { min-height: 48px; font-size: 17px; }
+  /* 처리할 주문 */
+  .od { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 14px; padding: 11px 12px; margin-bottom: 10px; }
+  .od.hot { border-color: var(--bad); }
+  .od .oh { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+  .od .oh .dest { font-size: 19px; font-weight: 900; }
+  .od .oh .price { margin-left: auto; font-weight: 900; font-size: 18px; color: #ffd8b8; }
+  .od .om { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+  .mg { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
+  .mb { border: 1.5px solid var(--line2); background: var(--panel2); border-radius: 11px; padding: 7px 8px; text-align: left; min-height: 62px; line-height: 1.3; }
+  .mb b { font-size: 14.5px; display: block; }
+  .mb span { font-size: 12px; color: var(--muted); display: block; }
+  .mb .ok { color: #86efac; } .mb .ng { color: #fca5a5; }
+  .mb:not(:disabled):hover { background: var(--panel3); }
+  .mb:disabled { opacity: .38; cursor: not-allowed; }
+  .mb.best { border-color: var(--accent); }
+  .mb.danger { border-color: rgba(239,68,68,.45); }
+  /* 운송 현황 */
+  .lg { display: flex; gap: 8px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; font-size: 13.5px; }
+  .lg .ic { font-size: 20px; line-height: 1; }
+  .lg .tx { flex: 1; }
+  .lg .tx b { font-size: 14px; }
+  .lg .rs { text-align: right; font-weight: 700; white-space: nowrap; }
+  .tips { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.7; margin-bottom: 12px; }
+  /* 오버레이 */
+  .ov { position: fixed; inset: 0; background: rgba(6,9,13,.94); z-index: 50; overflow: auto; padding: 24px 16px 60px; display: flex; justify-content: center; align-items: flex-start; }
+  .ov .in { width: min(820px, 100%); }
+  .ov h1 { margin: 0 0 4px; font-size: 28px; }
+  .ov .sub { color: var(--muted); margin-bottom: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; }
+  .kgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .kgrid { grid-template-columns: repeat(2, 1fr); } }
+  .kgrid .card { text-align: center; margin: 0; }
+  .kgrid .v { font-size: 28px; font-weight: 900; margin-top: 2px; }
+  .kgrid .k { color: var(--muted); font-size: 13px; }
+  .tl { font-size: 14px; line-height: 1.9; }
+  .tl .t { color: var(--dim); display: inline-block; width: 64px; }
+  textarea { width: 100%; min-height: 90px; font-size: 17px; resize: vertical; }
+  #soloBar { display: flex; gap: 6px; padding: 6px 10px; background: #0c1118; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="join" class="jwrap hidden">
+  <div class="jcard">
+    <h1>🎛️ 우리 회사 관제실</h1>
+    <div class="muted">평택 물류 관제실 「오늘의 물류 시장」 · 모둠 태블릿</div>
+    <label>방 코드 (전자칠판에 표시)</label>
+    <div class="jrow"><input id="jCode" inputmode="numeric" maxlength="6" autocomplete="off"><button class="btn primary" id="jFind" style="min-width:110px">방 찾기</button></div>
+    <div id="jStep2" class="hidden">
+      <label>우리 모둠</label>
+      <div class="gpick" id="jGroups"></div>
+      <label>회사 이름</label>
+      <input id="jName" maxlength="10" placeholder="예: 번개물류" autocomplete="off">
+      <label>PIN 4자리 <small class="dim">(다시 들어올 때 필요 — 모둠원만 알기)</small></label>
+      <input id="jPin" inputmode="numeric" maxlength="4" autocomplete="off" type="password">
+      <button class="btn primary lg" id="jGo" style="width:100%;margin-top:18px">입장하기</button>
+    </div>
+    <div id="jErr" class="bad"></div>
+    <div class="muted" style="margin-top:14px;font-size:13px;line-height:1.7"><span id="jConn"></span><br>📴 인터넷이 안 되면 → <a href="?solo=1" style="color:var(--accent2)">오프라인 1인 모드</a> (선생님이 불러주는 주문만 수락)</div>
+  </div>
+</div>
+
+<div id="main" class="hidden">
+  <header id="hd">
+    <div class="hrow" id="hRow"></div>
+    <div class="res" id="hRes"></div>
+  </header>
+  <div id="popbar"></div>
+  <div class="body">
+    <section id="mkt">
+      <h3 class="sec">📋 시장 <small id="mktSum"></small></h3>
+      <div id="mlist"></div>
+      <div class="recent" id="recent"></div>
+    </section>
+    <section id="desk">
+      <div id="tips"></div>
+      <h3 class="sec">🚚 우리 트럭 <small>같은 목적지 합적 ≤10톤 · [출발] 누르면 지도로 출발</small></h3>
+      <div class="trow" id="trucks"></div>
+      <h3 class="sec">📥 처리할 주문 <small id="actSum"></small></h3>
+      <div id="olist"></div>
+      <h3 class="sec">📜 운송 현황</h3>
+      <div id="log"></div>
+    </section>
+  </div>
+  <div id="soloBar" class="hidden"></div>
+</div>
+<div id="ov"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="market-data.js"></script>
+<script src="engine.js"></script>
+<script src="realtime.js"></script>
+<script src="ui.js"></script>
+<script>
+'use strict';
+const { $, $$, esc } = UI;
+const qs = new URLSearchParams(location.search);
+const SOLO = qs.get('solo') === '1';
+const EPS = 1e-6;
+let db = null, room = {}, prevRoom = {}, me = null, host = null, unsub = null;
+let hold = false;
+const bidDraft = {}, showQuote = {};
+const seen = { rid: null, init: false, vis: new Set(), ev: new Set(), pops: new Set(), trucks: {} };
+document.addEventListener('pointerdown', () => { hold = true; UI.unlockAudio(); }, true);
+document.addEventListener('pointerup', () => setTimeout(() => { hold = false; }, 120), true);
+document.addEventListener('pointercancel', () => { hold = false; }, true);
+
+const gsty = g => { const G = MD.groupById(g); return G ? `--gc:${G.color};--gsoft:${G.soft}` : ''; };
+const fmt = E.fmtTime;
+function ctxNow() {
+  const st = room.state || {};
+  const R = MD.roundById(st.round);
+  const rid = st.round;
+  const clock = E.clockOf(st, db.now());
+  const running = st.phase === 'running';
+  const fin = R ? E.isFinished(room, rid) : false;
+  const gr = R && room.market && room.market[rid] ? E.groupRound({ room, g: me.g, rid, clock, finished: fin }) : null;
+  return { st, R, rid, clock, running, fin, gr };
+}
+
+// ───────────────────────── 입장
+let joinDb = null, joinSel = null, joinUnsub = null;
+function showJoin(msg) {
+  $('#main').classList.add('hidden'); $('#join').classList.remove('hidden');
+  $('#jConn').textContent = '연결: ' + RT.label();
+  const saved = JSON.parse(localStorage.getItem('ptm:student') || 'null');
+  $('#jCode').value = qs.get('room') || (saved && saved.code) || '';
+  $('#jErr').textContent = msg || '';
+  if ($('#jCode').value) findRoom();
+}
+async function findRoom() {
+  const code = $('#jCode').value.trim();
+  $('#jErr').textContent = '';
+  if (!code) return;
+  joinDb = RT.connect(code);
+  if (!(await joinDb.exists())) { $('#jErr').textContent = '방을 찾을 수 없어요. 코드를 확인하세요.'; $('#jStep2').classList.add('hidden'); return; }
+  $('#jStep2').classList.remove('hidden');
+  if (joinUnsub) joinUnsub();
+  joinUnsub = joinDb.on(d => drawGroupPick(d || {}));
+}
+function drawGroupPick(d) {
+  $('#jGroups').innerHTML = MD.GROUPS.map(G => {
+    const g = d.groups && d.groups[G.id];
+    return `<button data-g="${G.id}" class="${joinSel === G.id ? 'sel' : ''}" style="${gsty(G.id)}"><b>${G.no}모둠</b><small>${g && g.name ? '🔒 ' + esc(g.name) : '비어 있음'}</small></button>`;
+  }).join('');
+  window._joinData = d;
+}
+$('#jFind').onclick = findRoom;
+$('#jCode').addEventListener('keydown', e => { if (e.key === 'Enter') findRoom(); });
+$('#jGroups').addEventListener('click', e => {
+  const b = e.target.closest('[data-g]'); if (!b) return;
+  joinSel = b.dataset.g;
+  const g = window._joinData && window._joinData.groups && window._joinData.groups[joinSel];
+  $('#jName').value = (g && g.name) || '';
+  drawGroupPick(window._joinData || {});
+});
+$('#jGo').onclick = async () => {
+  UI.unlockAudio();
+  const code = $('#jCode').value.trim(), name = $('#jName').value.trim(), pin = $('#jPin').value.trim();
+  if (!joinSel) return $('#jErr').textContent = '모둠을 고르세요';
+  if (!name) return $('#jErr').textContent = '회사 이름을 정하세요';
+  if (!/^\d{4}$/.test(pin)) return $('#jErr').textContent = 'PIN은 숫자 4자리';
+  try { await join(code, joinSel, name, pin); } catch (e) { $('#jErr').textContent = e.message || e; }
+};
+async function join(code, g, name, pin) {
+  const d = joinDb && joinDb.code === code ? joinDb : RT.connect(code);
+  if (!(await d.exists())) throw new Error('방을 찾을 수 없어요');
+  const cur = await d.get(`groups/${g}`);
+  if (cur && cur.pin && cur.pin !== pin) throw new Error('PIN이 달라요 — 선생님께 PIN 초기화를 요청하세요');
+  await d.update(`groups/${g}`, { name: name || (cur && cur.name) || MD.groupById(g).no + '모둠', pin, joinedAt: (cur && cur.joinedAt) || d.now() });
+  if (joinUnsub) { joinUnsub(); joinUnsub = null; }
+  localStorage.setItem('ptm:student', JSON.stringify({ code, g, pin }));
+  enter(d, { code, g, pin });
+}
+async function autoJoin() {
+  const saved = JSON.parse(localStorage.getItem('ptm:student') || 'null');
+  if (!saved || (qs.get('room') && qs.get('room') !== saved.code)) return showJoin();
+  try {
+    const d = RT.connect(saved.code);
+    if (!(await d.exists())) return showJoin();
+    const cur = await d.get(`groups/${saved.g}`);
+    if (!cur || cur.pin !== saved.pin) return showJoin();
+    enter(d, saved);
+  } catch (e) { showJoin(); }
+}
+
+function enter(d, who) {
+  db = d; me = who;
+  $('#join').classList.add('hidden'); $('#main').classList.remove('hidden');
+  if (unsub) unsub();
+  unsub = db.on(v => { prevRoom = room; room = v || {}; onRoom(); render(true); });
+  if (!window._loop) window._loop = setInterval(() => render(false), 200);
+}
+
+// ───────────────────────── 오프라인 1인 모드
+async function bootSolo() {
+  const d = RT.connect('SOLO');
+  if (!(await d.exists())) await d.update('', { meta: { game: 'pt-market', solo: true }, state: { phase: 'lobby' }, 'groups/g1': { name: '우리 회사', pin: '0000' } });
+  enter(d, { code: 'SOLO', g: 'g1', pin: '0000' });
+  host = new E.Host(db, () => room, { solo: true });
+  setInterval(() => host.tick(), 250);
+  const bar = $('#soloBar');
+  bar.classList.remove('hidden');
+  bar.innerHTML = `<b>📴 오프라인 1인 모드</b><span class="muted">선생님이 불러주는 주문만 수락하세요 ·</span>
+    ${MD.ROUNDS.map(r => `<button class="btn sm" data-solo="prep" data-r="${r.id}">${r.id}</button>`).join('')}
+    <button class="btn sm primary" data-solo="start">▶</button><button class="btn sm" data-solo="pause">⏸</button>
+    <button class="btn sm" data-solo="spd1">×1</button><button class="btn sm" data-solo="spd2">×2</button>
+    <button class="btn sm danger" data-solo="settle">🏁 정산</button><button class="btn sm" data-solo="final">🏆</button>
+    <button class="btn sm ghost" data-solo="name">✏️ 회사명</button>`;
+  bar.addEventListener('click', async e => {
+    const b = e.target.closest('[data-solo]'); if (!b) return;
+    const a = b.dataset.solo;
+    if (a === 'prep') { resetSeen(); await host.prepareRound(b.dataset.r); }
+    if (a === 'start') host.start();
+    if (a === 'pause' && room.state && room.state.phase === 'running') host.pause();
+    if (a === 'spd1') host.setSpeed(1);
+    if (a === 'spd2') host.setSpeed(2);
+    if (a === 'settle' && await UI.confirm('정산', '하루를 마감할까요?')) host.finishNow();
+    if (a === 'final') host.final();
+    if (a === 'name') { const n = prompt('회사 이름', (room.groups && room.groups.g1 && room.groups.g1.name) || ''); if (n) db.set('groups/g1/name', n.slice(0, 10)); }
+  });
+}
+
+// ───────────────────────── 알림 (새 주문·배송 결과·트럭 복귀·돌발·VIP 결과)
+function resetSeen() { seen.rid = null; seen.init = false; seen.vis.clear(); seen.ev.clear(); seen.pops.clear(); seen.trucks = {}; }
+function onRoom() {
+  const st = room.state || {}, rid = st.round;
+  if (!rid || !room.market || !room.market[rid]) return;
+  const pm = (prevRoom.market && prevRoom.market[rid]) || {};
+  Object.values(room.market[rid]).forEach(o => {
+    const p = pm[o.id];
+    if (!p || p.status === o.status) return;
+    const myBid = o.bids && o.bids[me.g];
+    if (p.status === 'vip' && myBid) {
+      if (o.owner === me.g) { UI.sfx('good'); UI.toast(`⭐ VIP 낙찰 성공! ${esc(o.name)} — 받을 돈 ${o.price}`, { color: '#fbbf24', ms: 5000 }); }
+      else if (o.status === 'taken') { UI.sfx('bad'); UI.toast(`VIP 「${esc(o.name)}」 — ${esc(UI.gName(room, o.owner))}이(가) ${o.price}에 낙찰`, { ms: 5000 }); }
+    }
+  });
+}
+function notify(c) {
+  const { rid, gr, clock, R } = c;
+  if (!gr) return;
+  if (seen.rid !== rid) { resetSeen(); seen.rid = rid; }
+  const vis = E.marketList(room, rid).filter(o => !o.carried && ['open', 'bidding'].includes(E.marketStatus(o, clock, R, c.fin)));
+  const evs = gr.events.filter(e => e.type === 'ontime' || e.type === 'late');
+  const pops = E.popupList(room, rid);
+  if (!seen.init) {
+    vis.forEach(o => seen.vis.add(o.id)); evs.forEach(e => seen.ev.add(e.o.id)); pops.forEach(p => seen.pops.add(p.type + p.at));
+    ['t1', 't2'].forEach(k => { seen.trucks[k] = gr.trucks[k].status; });
+    seen.init = true; return;
+  }
+  let fresh = vis.filter(o => !seen.vis.has(o.id));
+  if (fresh.length) { fresh.forEach(o => seen.vis.add(o.id)); UI.sfx(fresh.some(o => o.vip) ? 'vip' : 'ding'); if (fresh.some(o => o.vip)) UI.toast('⭐ VIP 역경매 시작! 10초 안에 입찰', { color: '#fbbf24' }); }
+  evs.forEach(e => {
+    if (seen.ev.has(e.o.id)) return; seen.ev.add(e.o.id);
+    if (e.type === 'ontime') { UI.sfx('good'); UI.toast(`✅ 정시 배송! ${esc(e.o.name)} <b class="good">+${e.amt}</b> ★${E.fmtStarDelta(e.star)}`, { color: '#22c55e' }); }
+    else { UI.sfx('bad'); UI.toast(`⚠ 지연 배송 ${esc(e.o.name)} — 위약 ${e.pen} · ★${E.fmtStarDelta(e.star)}`, { color: '#ef4444' }); }
+  });
+  ['t1', 't2'].forEach(k => {
+    const s = gr.trucks[k].status, p = seen.trucks[k];
+    if (p && p !== 'idle' && s === 'idle') { UI.sfx('ding'); UI.toast(`${k === 't1' ? '🚚 일반' : '❄ 냉장'} 트럭 복귀! 다시 배차할 수 있어요`, { color: '#22c55e' }); }
+    seen.trucks[k] = s;
+  });
+  pops.forEach(p => {
+    const key = p.type + p.at; if (seen.pops.has(key)) return; seen.pops.add(key);
+    UI.sfx('alert');
+    const mine = p.type === 'breakdown' && E.arr(p.targets).find(t => t.g === me.g);
+    if (mine) UI.modal(`<div style="text-align:center"><div style="font-size:70px">🔧</div><h3>우리 ${mine.truck === 't1' ? '일반' : '냉장'} 트럭 고장!</h3><div class="muted">1시간 동안 멈춥니다. 실린 화물은 1시간 늦어져요.<br>💡 급한 화물은 위탁으로 돌리세요.</div></div>`, [{ label: '확인', cls: 'primary', value: 1 }]);
+    else UI.toast(`${p.icon} <b>${esc(p.title)}</b> — ${esc(p.desc)}<br><span class="muted">💡 ${esc(MD.POPUPS[p.type].tip)}</span>`, { ms: 6000 });
+  });
+}
+
+// ───────────────────────── 렌더
+function patch(box, items) {
+  const ex = new Map(Array.from(box.children).map(el => [el.dataset.key, el]));
+  items.forEach((it, i) => {
+    let el = ex.get(it.key);
+    if (!el) { el = document.createElement('div'); el.dataset.key = it.key; }
+    else ex.delete(it.key);
+    const busy = el.contains(document.activeElement) && document.activeElement !== document.body;
+    if (!busy && (el._h !== it.html || el._c !== it.cls)) { el.innerHTML = it.html; el._h = it.html; el.className = it.cls || ''; el._c = it.cls; }
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+  });
+  ex.forEach(el => el.remove());
+}
+
+function render(force) {
+  if (!db || !me) return;
+  const st = room.state || {};
+  if (room.meta && !(room.groups && room.groups[me.g])) { if (!SOLO) { localStorage.removeItem('ptm:student'); if (unsub) unsub(); me = null; return showJoin('선생님이 모둠을 초기화했어요. 다시 입장하세요.'); } }
+  const c = ctxNow();
+  notify(c);
+  renderHeader(c);
+  renderOverlay(c);
+  if (hold && !force) return;
+  renderMarket(c);
+  renderDesk(c);
+}
+
+function renderHeader(c) {
+  const { st, R, clock, gr } = c;
+  const now = db.now();
+  const tot = E.groupTotals(room, me.g, now);
+  const G = MD.groupById(me.g);
+  const name = (room.groups && room.groups[me.g] && room.groups[me.g].name) || '';
+  const mult = R ? E.multFor(room, me.g, R.id) : 1;
+  const today = gr ? gr.profit : 0;
+  $('#hd').setAttribute('style', gsty(me.g));
+  const hr = `<div class="co"><span class="dot"></span><span>${G.no}모둠 ${esc(name)}</span></div>
+    <div class="kv"><small>고객 별점</small><b class="star">★${E.fmtStar(tot.shownStars)}</b><small>배송료 ×${mult.toFixed(1)}</small></div>
+    <div class="kv"><small>${R && R.tutorial ? '연습 이익' : '누적 이익'}</small><b class="num ${(R && R.tutorial ? today : tot.cash) < 0 ? 'bad' : ''}">${E.fmtSigned(R && R.tutorial ? today : tot.cash)}</b><small>오늘 ${E.fmtSigned(today)}</small></div>
+    <div class="clk"><b class="num">${R ? fmt(clock) : '--:--'}</b><small>${R ? esc(R.name) + (R.snow ? ' ❄ 폭설' : '') : '대기 중'}${clock >= 22 && R ? ' · 출발 마감' : ''}</small></div>`;
+  if ($('#hRow')._h !== hr) { $('#hRow').innerHTML = hr; $('#hRow')._h = hr; }
+  let res = '';
+  if (gr) {
+    ['t1', 't2'].forEach(k => {
+      const t = gr.trucks[k];
+      const s = { idle: '대기', out: `배송 중 ~${fmt(t.until)}`, return: `복귀 중 ~${fmt(t.until)}`, broken: `🔧고장 ~${fmt(t.until)}` }[t.status];
+      res += `<div class="chip t-${t.status}">${k === 't1' ? '🚚 일반' : '❄ 냉장'} <b>${s}</b></div>`;
+    });
+    res += `<div class="chip ${gr.pplAvail < 1 ? 'low' : ''}">👷 인력 <b>${gr.pplAvail}</b>/${gr.pplTotal} <span class="dim">(사용 ${gr.pplUsed}·예약 ${gr.pplReserved})</span></div>`;
+    res += `<div class="chip ${gr.budgetLeft < 60 ? 'low' : ''}">💵 예산 <b>${gr.budgetLeft}</b>/${gr.budget}</div>`;
+    res += `<div class="chip ${gr.activeCount >= MD.ACTIVE_LIMIT ? 'low' : ''}">📥 처리 중 <b>${gr.activeCount}</b>/${MD.ACTIVE_LIMIT}</div>`;
+  }
+  if ($('#hRes')._h !== res) { $('#hRes').innerHTML = res; $('#hRes')._h = res; }
+  // 돌발 배너
+  let pb = st.phase === 'paused' ? '<div class="pb" style="border-color:var(--warn)">⏸ 선생님이 일시정지했어요</div>' : '';
+  if (R) E.popupList(room, R.id).filter(p => clock >= p.at && clock < p.until).forEach(p => {
+    const mine = p.type === 'breakdown' && E.arr(p.targets).some(t => t.g === me.g);
+    pb += `<div class="pb ${mine ? 'me' : ''}">${p.icon} ${esc(p.title)} ~${fmt(p.until)} · ${esc(p.desc)}</div>`;
+  });
+  if ($('#popbar')._h !== pb) { $('#popbar').innerHTML = pb; $('#popbar')._h = pb; }
+}
+
+// 시장 미니 뷰
+function renderMarket(c) {
+  const { R, rid, clock, running, fin } = c;
+  if (!R || !room.market || !room.market[rid]) { patch($('#mlist'), [{ key: 'e', html: '<div class="empty">시장이 아직 열리지 않았어요</div>' }]); $('#recent').innerHTML = ''; $('#mktSum').textContent = ''; return; }
+  const mult = E.multFor(room, me.g, rid);
+  const list = E.marketList(room, rid).filter(o => !o.carried);
+  const items = [];
+  const vis = list.map(o => [o, E.marketStatus(o, clock, R, fin)]).filter(([, s]) => ['open', 'bidding', 'judging'].includes(s));
+  vis.sort((a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
+  vis.forEach(([o, s]) => {
+    const chk = running ? E.canAccept(room, me.g, rid, o, clock) : { ok: false, why: '일시정지' };
+    const left = o.deadline - clock;
+    const dl = `⏰ 마감 ${fmt(o.deadline)} <span class="${left < 2 ? 'urgent' : ''}">${left < 24 ? '· ' + E.fmtDur(left) + ' 남음' : '· 내일'}</span>`;
+    const head = `<div class="r1"><span class="dest">${esc(o.dest)}</span><b>${o.ton}톤</b>${UI.tags(o)}<span class="fee num">${s === 'open' ? o.fee : '≤' + o.fee}</span></div><div class="nm">${esc(o.name)}</div><div class="r3">${dl}</div>`;
+    let body = '';
+    if (s === 'open') {
+      const price = Math.round(o.fee * mult);
+      body = chk.ok
+        ? `<div class="hint">받을 돈 <b>${price}</b>${mult !== 1 ? ` (★×${mult.toFixed(1)})` : ''} · 최저 ${MD.MODES[chk.best.mode].icon}${chk.best.cost} → 이익 <b class="${price - chk.best.cost >= 0 ? 'good' : 'bad'}">${E.fmtSigned(price - chk.best.cost)}</b></div><div class="act"><button class="btn primary" data-act="accept" data-id="${o.id}">수락</button></div>`
+        : `<div class="act"><button class="btn" disabled>수락</button><span class="why">🚫 ${esc(chk.why)}</span></div>`;
+    } else if (s === 'bidding') {
+      const secs = Math.max(0, Math.ceil((o.t_in + E.vipWindow(R) - clock) * R.secPerHour / ((room.state && room.state.speed) || 1)));
+      const myBid = o.bids && o.bids[me.g];
+      const qs2 = showQuote[o.id] ? quoteList(o, c) : '';
+      body = `<div class="r1" style="margin-top:6px"><span class="cd num">⭐ ${secs}초</span><span class="muted">역경매 — 가장 낮게 부른 회사가 낙찰 (동점은 별점 순)</span></div>
+        ${myBid ? `<div class="hint">내 입찰: <b style="color:var(--vip)">${myBid.price}</b> (다시 입력하면 수정)</div>` : ''}
+        ${chk.ok ? `<div class="bidrow"><input type="number" inputmode="numeric" min="1" max="${o.fee}" placeholder="≤ ${o.fee}" data-bid="${o.id}" value="${esc(bidDraft[o.id] || '')}"><button class="btn primary" data-act="bid" data-id="${o.id}" style="min-width:80px">입찰</button></div>` : `<div class="why" style="margin-top:6px">🚫 ${esc(chk.why)} — 입찰 불가</div>`}
+        <div class="act"><button class="btn sm ghost" data-act="quote" data-id="${o.id}">💡 ${showQuote[o.id] ? '견적 숨기기' : '원가 견적 보기'}</button></div>${qs2}`;
+    } else {
+      body = `<div class="hint" style="color:var(--vip)">⏳ 낙찰 판정 중…</div>`;
+    }
+    items.push({ key: o.id, cls: 'oc' + (s !== 'open' ? ' vipc' : chk.ok ? ' can' : ''), html: head + body });
+  });
+  if (!items.length) items.push({ key: 'e', html: `<div class="empty">${clock >= 22 ? '오늘 시장은 마감됐어요' : '새 주문을 기다리는 중… 🔔'}</div>` });
+  patch($('#mlist'), items);
+  const open = vis.filter(([, s]) => s === 'open').length;
+  $('#mktSum').textContent = `열린 주문 ${open}건`;
+  const taken = list.filter(o => o.status === 'taken' && o.owner).sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0)).slice(0, 5);
+  const rc = taken.length ? '<b>최근 수락</b>' + taken.map(o => `<div><span style="color:${UI.gColor(o.owner)};font-weight:800">${esc(UI.gName(room, o.owner))}</span> · ${esc(o.dest)} ${esc(o.name)}${o.vipWin ? ` ⭐${o.price}` : ''}</div>`).join('') : '';
+  if ($('#recent')._h !== rc) { $('#recent').innerHTML = rc; $('#recent')._h = rc; }
+}
+function quoteList(o, c) {
+  const ctx = { snow: c.R.snow, popups: E.popupList(room, c.rid) };
+  const rows = [];
+  if (!E.truckFits(o, 't2')) { const q = E.quoteTruck(o.dest, c.clock, ctx); rows.push(`🚚 트럭 ${q.cost} · 도착 ${fmt(q.arrive)} ${q.arrive <= o.deadline + EPS ? '✓' : '⚠지연'}`); }
+  ['rail', 'sea', 'air'].forEach(m => { const q = E.quoteConsign(o, m, c.clock, ctx); rows.push(q.ok ? `${MD.MODES[m].icon} ${MD.MODES[m].label} ${q.cost} · 도착 ${fmt(q.arrive)} ${q.onTime ? '✓' : '⚠지연'}` : `<span class="dim">${MD.MODES[m].icon} ${q.reason}</span>`); });
+  return `<div class="quotes">${rows.join('<br>')}</div>`;
+}
+
+// 배차판
+function renderDesk(c) {
+  const { R, rid, clock, running, gr } = c;
+  if (!gr) { patch($('#trucks'), []); patch($('#olist'), []); patch($('#log'), []); $('#tips').innerHTML = ''; return; }
+  const tips = R.tutorial ? `<div class="tips">🎓 <b>튜토리얼</b> — ① 왼쪽 시장에서 <b>[수락]</b> ② 주문 카드에서 <b>트럭에 싣기</b>(같은 목적지는 합적!) 또는 <b>철도·선박·항공 위탁</b> ③ 트럭 카드의 <b>[출발]</b>. 마감 전에 도착하면 ★+0.1!</div>` : '';
+  if ($('#tips')._h !== tips) { $('#tips').innerHTML = tips; $('#tips')._h = tips; }
+  patch($('#trucks'), ['t1', 't2'].map(k => ({ key: k, cls: 'tk ' + gr.trucks[k].status, html: truckHtml(k, gr, clock, running) })));
+  const act = gr.active.map(o => ({ key: o.id, cls: 'od' + (o.deadline - clock < 2 ? ' hot' : ''), html: orderHtml(o, gr, clock, running, R) }));
+  if (!act.length) act.push({ key: 'e', html: `<div class="empty">${gr.loaded.length ? '트럭에 실린 화물은 위 트럭 카드에서 [출발]하세요' : '처리할 주문이 없어요. 시장에서 수락하세요!'}</div>` });
+  patch($('#olist'), act);
+  $('#actSum').textContent = `처리 중 ${gr.activeCount}/${MD.ACTIVE_LIMIT} · 인력 ${gr.pplAvail}명 남음`;
+  patch($('#log'), logItems(gr, clock));
+}
+
+function truckHtml(k, gr, clock, running) {
+  const tk = gr.trucks[k], ld = tk.load;
+  const st = tk.status === 'out' ? `<span style="color:#93c5fd">🔵 ${esc(tk.cur.dest)} 배송 중 · 도착 ${fmt(tk.cur.effArrive)}</span>`
+    : tk.status === 'return' ? `<span style="color:#93c5fd">↩ 복귀 중 · ${fmt(tk.until)}</span>`
+    : tk.status === 'broken' ? `<span class="bad">🔧 고장 · ${fmt(tk.until)}까지</span>`
+    : '<span class="good">🟢 대기 중</span>';
+  const pct = Math.min(100, ld.tons / MD.MODES.truck.cap * 100);
+  let h = `<div class="th"><b>${k === 't1' ? '🚚 일반 트럭' : '❄ 냉장 트럭'}</b><span class="ts">${st}</span></div>
+    <div class="gauge"><i style="width:${pct}%;${pct > 99 ? 'background:var(--bad)' : ''}"></i></div>
+    <div class="muted" style="font-size:13px">적재 <b>${ld.tons}</b>/10톤${ld.dest ? ` · <b style="color:var(--text)">${esc(ld.dest)}행</b>` : ''} · 오늘 ${tk.trips}회 운행</div>
+    <div class="ldchips">${ld.oids.length ? ld.oids.map(id => { const o = gr.byId[id]; return `<span class="ldc">${esc(o.name)} ${o.ton}t <button data-act="unload" data-id="${id}" data-k="${k}" title="내리기(되돌리기)">✕</button></span>`; }).join('') : `<span class="dim" style="font-size:13px">비어 있음 — 주문 카드에서 [싣기]</span>`}</div>`;
+  if (ld.oids.length) {
+    const dep = Math.max(clock, tk.freeAt);
+    const q = E.quoteTruck(ld.dest, dep, gr.ctx);
+    const late = ld.oids.filter(id => q.arrive > gr.byId[id].deadline + EPS);
+    const rev = ld.oids.reduce((s, id) => s + gr.byId[id].price, 0);
+    h += `<div class="pv">${tk.freeAt > clock + EPS ? `복귀 후 ${fmt(dep)} 출발 시 ` : '지금 출발 → '}도착 <b>${fmt(q.arrive)}</b> · 복귀 ${fmt(q.ret)}${q.delay ? ' <span class="warn">🚧+1h</span>' : ''}<br>운임 <b>${q.cost}</b> · 매출 ${rev} → 예상 이익 <b class="${rev - q.cost >= 0 ? 'good' : 'bad'}">${E.fmtSigned(rev - q.cost)}</b>${late.length ? `<br><span class="bad">⚠ 지연 예상: ${late.map(id => esc(gr.byId[id].name)).join(', ')}</span>` : ' <span class="good">✓ 모두 정시</span>'}</div>`;
+    let why = '';
+    if (!running) why = '진행 중이 아님';
+    else if (clock >= MD.TIME.LAST_DEPART - EPS) why = '22시 이후 출발 불가';
+    else if (tk.freeAt > clock + EPS) why = tk.status === 'broken' ? '고장 수리 중' : '트럭이 아직 안 돌아옴';
+    else if (q.cost > gr.budgetLeft) why = '예산 부족';
+    h += why ? `<button class="btn go" disabled>🚀 출발 — ${why}</button>` : `<button class="btn primary go" data-act="depart" data-k="${k}">🚀 출발 (${ld.oids.length}건 · ${ld.tons}톤)</button>`;
+  }
+  return h;
+}
+
+function orderHtml(o, gr, clock, running, R) {
+  const left = o.deadline - clock;
+  const label = o.carried ? ' <span class="tag">📦 어제 이월</span>' : o.reissued ? ' <span class="tag vip">⚡재수배</span>' : o.vipWin ? ' <span class="tag vip">⭐낙찰</span>' : '';
+  let h = `<div class="oh"><span class="dest">${esc(o.dest)}</span><b>${o.ton}톤</b>${UI.tags(o)}${label}<span class="price num">${o.price}</span></div>
+    <div class="nm" style="font-weight:600">${esc(o.name)}</div>
+    <div class="om">⏰ 마감 <b>${fmt(o.deadline)}</b> <span class="${left < 2 ? 'urgent' : ''}">${left < 0 ? '· 마감 지남(지연 중!)' : left < 24 ? '· ' + E.fmtDur(left) + ' 남음' : ''}</span></div><div class="mg">`;
+  const btns = [];
+  let bestCost = Infinity;
+  // 트럭 싣기
+  ['t1', 't2'].forEach(k => {
+    const why0 = E.truckFits(o, k);
+    if (why0 === '냉장 화물') return; // 일반 트럭 버튼 자체를 숨김
+    const tk = gr.trucks[k], ld = tk.load;
+    const nm = k === 't1' ? '🚚 일반 트럭' : '❄ 냉장 트럭';
+    let why = why0;
+    if (!why && ld.oids.length && ld.dest !== o.dest) why = `${ld.dest}행 적재 중`;
+    if (!why && ld.tons + o.ton > MD.MODES.truck.cap + EPS) why = `적재 초과 (${ld.tons}+${o.ton}>10)`;
+    if (!why && !running) why = '진행 중이 아님';
+    if (why) { btns.push(`<button class="mb" disabled><b>${nm}</b><span class="ng">${esc(why)}</span></button>`); return; }
+    const dep = Math.max(clock, tk.freeAt);
+    const q = E.quoteTruck(o.dest, dep, gr.ctx);
+    const ok = q.arrive <= o.deadline + EPS;
+    const cost = ld.oids.length ? 0 : q.cost;
+    bestCost = Math.min(bestCost, cost);
+    btns.push({ cost, html: `<button class="mb" data-act="load" data-id="${o.id}" data-k="${k}"><b>${nm}에 싣기</b><span>${tk.freeAt > clock + EPS ? `복귀(${fmt(tk.freeAt)}) 후 · ` : ''}도착 ${fmt(q.arrive)} <b class="${ok ? 'ok' : 'ng'}">${ok ? '✓' : '⚠지연'}</b></span><span>${ld.oids.length ? '<b class="ok">합적! 운임 +0</b>' : `운임 ${q.cost} · 이익 ${E.fmtSigned(o.price - q.cost)}`}</span></button>` });
+  });
+  // 위탁
+  ['rail', 'sea', 'air'].forEach(m => {
+    const M = MD.MODES[m];
+    const q = E.quoteConsign(o, m, clock, gr.ctx);
+    if (!q.ok) { if (q.reason !== '노선 없음') btns.push(`<button class="mb" disabled><b>${M.icon} ${M.label}</b><span class="ng">${esc(q.reason)}</span></button>`); return; }
+    let why = '';
+    if (!running) why = '진행 중이 아님';
+    else if (q.ppl - 1 > gr.pplAvail) why = `인력 부족 (${q.ppl}명 필요)`;
+    else if (q.cost > gr.budgetLeft) why = `예산 부족 (${q.cost})`;
+    if (why) { btns.push(`<button class="mb" disabled><b>${M.icon} ${M.label} ${q.cost}</b><span class="ng">${esc(why)}</span></button>`); return; }
+    bestCost = Math.min(bestCost, q.cost);
+    btns.push({ cost: q.cost, html: `<button class="mb" data-act="consign" data-id="${o.id}" data-m="${m}"><b>${M.icon} ${M.label} ${q.cost}</b><span>도착 ${fmt(q.arrive)} <b class="${q.onTime ? 'ok' : 'ng'}">${q.onTime ? '✓' : '⚠지연'}</b>${q.ppl > 1 ? ' · 인력2' : ''}</span><span>이익 ${E.fmtSigned(o.price - q.cost)}</span></button>` });
+  });
+  // 보관·포기
+  if (R.storage && o.deadline > MD.TIME.CLOSE && !o.carried) {
+    const why = !running ? '진행 중이 아님' : gr.budgetLeft < MD.STORE_COST ? '예산 부족' : '';
+    btns.push(why ? `<button class="mb" disabled><b>📦 보관(이월)</b><span class="ng">${why}</span></button>` : `<button class="mb" data-act="store" data-id="${o.id}"><b>📦 보관(이월) ${MD.STORE_COST}</b><span>내일 ${fmt(o.deadline - 24)} 마감으로</span><span>인력·처리한도 반납</span></button>`);
+  }
+  const pen = Math.round(o.price * MD.ABANDON_RATE);
+  btns.push(`<button class="mb danger" data-act="abandon" data-id="${o.id}" ${running ? '' : 'disabled'}><b>❌ 포기</b><span class="ng">위약 −${pen} · ★−1</span></button>`);
+  h += btns.map(b => typeof b === 'string' ? b : b.cost === bestCost ? b.html.replace('class="mb"', 'class="mb best"') : b.html).join('');
+  return h + '</div>';
+}
+
+function logItems(gr, clock) {
+  const items = [];
+  gr.disps.slice().reverse().forEach(d => {
+    const M = MD.MODES[d.mode];
+    const names = d.oids.map(id => esc(gr.byId[id].name));
+    let rs;
+    if (clock < d.effArrive - EPS) rs = `<span style="color:#93c5fd">운송 중 · 도착 ${fmt(d.effArrive)}</span>${d.delayed ? ' <span class="bad">🔧+' + d.delayed + 'h</span>' : ''}`;
+    else rs = d.oids.map(id => { const e = gr.events.find(x => x.o && x.o.id === id && (x.type === 'ontime' || x.type === 'late')); return e ? (e.type === 'ontime' ? `<span class="good">✅ +${e.amt}</span>` : `<span class="bad">⚠ 지연 ${Math.ceil(e.lateH - EPS)}h +${e.amt}</span>`) : ''; }).join('<br>');
+    items.push({ key: d.id, cls: 'lg', html: `<span class="ic">${d.mode === 'truck' && d.truck === 't2' ? '❄' : M.icon}</span><div class="tx"><b>${esc(d.dest)}</b> · ${names.join(', ')}<br><span class="muted">${M.label}${d.mode === 'truck' ? (d.truck === 't1' ? '(일반)' : '(냉장)') : ''} · 출발 ${fmt(d.depart)} → 도착 ${fmt(d.effArrive)} · 비용 ${d.cost}</span></div><div class="rs">${rs}</div>` });
+  });
+  gr.orders.filter(o => o.st === 'abandoned' || o.st === 'stored').forEach(o => {
+    items.push({ key: 'x' + o.id, cls: 'lg', html: `<span class="ic">${o.st === 'stored' ? '📦' : '❌'}</span><div class="tx"><b>${esc(o.dest)}</b> · ${esc(o.name)}<br><span class="muted">${o.st === 'stored' ? '보관(이월) — 내일 이어서 처리' : '수락 후 포기'} · ${fmt(o.rec.at)}</span></div><div class="rs ${o.st === 'stored' ? '' : 'bad'}">${o.st === 'stored' ? '−' + MD.STORE_COST : '−' + Math.round(o.price * MD.ABANDON_RATE) + ' ★−1'}</div>` });
+  });
+  if (!items.length) items.push({ key: 'e', html: '<div class="empty">아직 출발한 화물이 없어요</div>' });
+  return items;
+}
+
+// ───────────────────────── 오버레이 (대기·준비·성적표·최종)
+let ovSig = '';
+function renderOverlay(c) {
+  const { st, R, rid, gr } = c;
+  const phase = st.phase || 'lobby';
+  let html = '';
+  if (phase === 'lobby' || !R) html = waitHtml();
+  else if (phase === 'ready') html = readyHtml(R, gr);
+  else if (phase === 'settle') html = reportHtml(R, gr);
+  else if (phase === 'final') html = finalHtml();
+  const box = $('#ov');
+  if (html === ovSig) return;
+  if (box.contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA') return; // 회고 작성 중
+  ovSig = html; box.innerHTML = html;
+}
+function waitHtml() {
+  const G = MD.groupById(me.g);
+  return `<div class="ov"><div class="in" style="text-align:center;padding-top:10vh"><div style="font-size:80px">🎛️</div><h1>${G.no}모둠 ${esc((room.groups[me.g] || {}).name || '')} 입장 완료!</h1><div class="sub">선생님이 곧 하루를 준비합니다. 전자칠판을 보세요.</div>
+    <div class="card" style="text-align:left;line-height:1.9">🚚 트럭 일반1·냉장1 — 같은 목적지는 합적(≤10톤), 왕복 후 다시 사용<br>🚆 철도(18시 막차) · 🚢 선박(인력 2명) · ✈️ 항공(≤3톤, 폭설 결항)<br>👷 배차 1편 = 인력 1명 · 📥 동시에 최대 4건까지<br>⭐ VIP는 10초 역경매 — 가장 싸게 부른 회사가 낙찰<br>정시 ★+0.1 · 지연 ★−0.3(+위약 10%/h) · 포기 ★−1(위약 30%)</div>${SOLO ? '<div class="muted">아래 오프라인 바에서 라운드를 고르세요</div>' : ''}</div></div>`;
+}
+function readyHtml(R, gr) {
+  const carried = gr ? gr.orders.filter(o => o.carried) : [];
+  const mult = E.multFor(room, me.g, R.id);
+  return `<div class="ov"><div class="in"><h1>${R.snow ? '❄' : '☀'} ${esc(R.name)}</h1><div class="sub">${esc(R.story)}</div>
+    <div class="kgrid"><div class="card"><div class="k">🚚 트럭</div><div class="v" style="font-size:20px">${R.trucks}</div></div><div class="card"><div class="k">👷 인력</div><div class="v">${R.ppl}</div></div><div class="card"><div class="k">💵 예산</div><div class="v">${R.budget}</div></div><div class="card"><div class="k">배송료 배수</div><div class="v">×${mult.toFixed(1)}</div></div></div>
+    <div class="card" style="margin-top:12px;line-height:1.8">${carried.length ? `📦 어제 보관한 화물 ${carried.length}건이 들어와 있어요: ${carried.map(o => esc(o.name) + ' (마감 ' + fmt(o.deadline) + ')').join(', ')}<br>` : ''}${R.snow ? '❄ 폭설: 트럭 40km/h, 항공 결항!<br>' : ''}${R.tutorial ? '🎓 연습 라운드 — 기록되지 않아요. 합적·위탁을 다 눌러 보세요!<br>' : ''}선생님이 ▶ 시작을 누르면 06:00부터 하루가 흘러갑니다.</div></div></div>`;
+}
+function reportHtml(R, gr) {
+  if (!gr) return '';
+  const before = R.tutorial ? MD.STARS.start : E.starsBefore(room, me.g, R.id);
+  const after = E.clampStars(before + gr.starDelta);
+  const rate = gr.onTimeRate == null ? '-' : Math.round(gr.onTimeRate * 100) + '%';
+  const lines = gr.events.filter(e => e.type !== 'cost').map(e => {
+    const lab = { ontime: '✅ 정시', late: '⚠ 지연', abandon: e.auto ? '❌ 출발 못 함(자동 포기)' : '❌ 포기', store: '📦 보관' }[e.type];
+    return `<div><span class="t num">${fmt(e.t)}</span>${lab} · ${esc(e.o.name)} <b class="${e.amt >= 0 ? 'good' : 'bad'}">${E.fmtSigned(e.amt)}</b>${e.star ? ` <span class="muted">★${E.fmtStarDelta(e.star)}</span>` : ''}</div>`;
+  }).join('') || '<div class="dim">처리한 주문이 없어요</div>';
+  const memo = gr.memo;
+  return `<div class="ov"><div class="in"><h1>🏁 ${esc(R.name)} 성적표</h1><div class="sub">${R.tutorial ? '연습 라운드 — 기록되지 않습니다' : '전자칠판에서 전체 결과를 확인하세요'}</div>
+    <div class="kgrid"><div class="card"><div class="k">오늘 이익</div><div class="v ${gr.profit < 0 ? 'bad' : 'good'}">${E.fmtSigned(gr.profit)}</div></div>
+    <div class="card"><div class="k">매출 / 비용 / 위약</div><div class="v" style="font-size:17px;margin-top:10px">${gr.revenue} / −${gr.cost} / −${gr.penalty}</div></div>
+    <div class="card"><div class="k">정시율</div><div class="v">${rate}</div><div class="k">${gr.onTime}정시 · ${gr.late}지연 · ${gr.abandoned}포기</div></div>
+    <div class="card"><div class="k">별점</div><div class="v" style="color:var(--vip)">★${E.fmtStar(after)}</div><div class="k">${E.fmtStarDelta(gr.starDelta)} · 내일 배수 ×${MD.starMultiplier(after).toFixed(1)}</div></div></div>
+    <div class="card" style="margin-top:12px"><b>📜 오늘의 주문 타임라인</b><div class="tl" style="margin-top:6px">${lines}</div></div>
+    <div class="card"><b>✍️ 한 줄 회고 (필수)</b> — 오늘 가장 잘한 결정 또는 후회한 결정은?
+      ${memo ? `<div style="font-size:18px;margin:10px 0;padding:10px;background:var(--bg2);border-radius:10px">“${esc(memo)}”</div><div class="good">✓ 제출 완료! 전자칠판을 보세요.</div><button class="btn sm" style="margin-top:8px" data-act="memoEdit">수정하기</button>`
+        : `<textarea id="memo" maxlength="120" placeholder="예: 서울행 3건을 한 트럭에 합적한 게 최고였다 / VIP를 너무 싸게 불러서 적자였다"></textarea><button class="btn primary lg" style="width:100%;margin-top:10px" data-act="memo">회고 제출</button>`}
+    </div></div></div>`;
+}
+function finalHtml() {
+  const now = db.now();
+  const rows = MD.GROUPS.filter(G => room.groups && room.groups[G.id] && room.groups[G.id].name).map(G => Object.assign({ G }, E.groupTotals(room, G.id, now))).sort((a, b) => b.cash - a.cash);
+  const myRank = rows.findIndex(r => r.G.id === me.g) + 1;
+  return `<div class="ov"><div class="in"><h1>🏆 최종 결산</h1><div class="sub">3일간 누적 이익 순위 — 우리 회사 <b>${myRank}위</b></div>
+    ${rows.map((r, i) => `<div class="card" style="display:flex;align-items:center;gap:12px;border-left:6px solid ${r.G.color};${r.G.id === me.g ? 'background:var(--panel3)' : ''}"><b style="font-size:24px;width:40px">${i + 1}</b><div style="flex:1"><b style="font-size:18px">${esc(UI.gName(room, r.G.id))}</b></div><div class="num" style="font-size:20px;font-weight:900">${E.fmtSigned(r.cash)}</div><div style="color:var(--vip);font-weight:800">★${E.fmtStar(r.stars)}</div></div>`).join('')}</div></div>`;
+}
+
+// ───────────────────────── 행동
+const act = {
+  async accept(id) {
+    const c = ctxNow(); const o = room.market[c.rid][id];
+    const chk = E.canAccept(room, me.g, c.rid, o, c.clock);
+    if (!chk.ok) return UI.toast('🚫 ' + chk.why);
+    const mult = E.multFor(room, me.g, c.rid);
+    const clock = c.clock;
+    const r = await db.txn(`market/${c.rid}/${id}`, cur => {
+      if (!cur || cur.status !== 'open') return undefined;
+      return Object.assign(cur, { status: 'taken', owner: me.g, price: Math.round(cur.fee * mult), takenAt: clock });
+    });
+    if (r.committed) { UI.sfx('take'); UI.toast(`✅ 수락! <b>${esc(o.name)}</b> — 오른쪽 배차판에서 수단을 고르세요`, { color: '#22c55e' }); }
+    else { UI.sfx('bad'); UI.toast('😢 다른 회사가 먼저 가져갔어요'); }
+  },
+  async load(id, k) {
+    const c = ctxNow(); const o = c.gr.byId[id]; const ld = c.gr.trucks[k].load;
+    const why = E.truckFits(o, k) || (ld.oids.length && ld.dest !== o.dest ? '다른 목적지 적재 중' : '') || (ld.tons + o.ton > MD.MODES.truck.cap + EPS ? '적재 초과' : '');
+    if (why) return UI.toast('🚫 ' + why);
+    await db.set(`groups/${me.g}/rd/${c.rid}/load/${k}/${id}`, true);
+    UI.sfx('tick');
+  },
+  async unload(id, k) {
+    const c = ctxNow();
+    const sim = E.simulate(room, me.g, c.rid, c.clock, gd => { if (gd.load && gd.load[k]) delete gd.load[k][id]; });
+    if (sim.pplAvail < 0) return UI.toast('🚫 인력이 부족해서 따로 내릴 수 없어요 (합적 중 1명 → 따로 2명 필요)');
+    await db.set(`groups/${me.g}/rd/${c.rid}/load/${k}/${id}`, null);
+  },
+  async depart(_id, k) {
+    let c = ctxNow(); const tk = c.gr.trucks[k], ld = tk.load;
+    if (!ld.oids.length) return;
+    let q = E.quoteTruck(ld.dest, c.clock, c.gr.ctx);
+    const late = ld.oids.filter(id => q.arrive > c.gr.byId[id].deadline + EPS);
+    if (late.length && !(await UI.confirm('⚠ 지연 예상', `${late.map(id => esc(c.gr.byId[id].name)).join(', ')} 이(가) 마감보다 늦게 도착해요.<br>지연 1시간마다 위약금 10%, 별점 −0.3. 그래도 출발할까요?`, '출발', 'danger'))) return;
+    c = ctxNow();
+    const t2 = c.gr.trucks[k];
+    if (!c.running || t2.freeAt > c.clock + EPS || c.clock >= MD.TIME.LAST_DEPART - EPS) return UI.toast('🚫 지금은 출발할 수 없어요');
+    q = E.quoteTruck(t2.load.dest, c.clock, c.gr.ctx);
+    if (q.cost > c.gr.budgetLeft) return UI.toast('🚫 예산 부족');
+    const did = E.uid('d');
+    await db.update(`groups/${me.g}/rd/${c.rid}`, {
+      ['disp/' + did]: { mode: 'truck', truck: k, dest: t2.load.dest, oids: t2.load.oids, tons: t2.load.tons, depart: c.clock, arrive: q.arrive, ret: q.ret, cost: q.cost, ppl: 1, delay: q.delay || 0 },
+      ['load/' + k]: null,
+    });
+    UI.sfx('depart');
+    UI.toast(`🚀 ${k === 't1' ? '일반' : '냉장'} 트럭 출발! ${esc(t2.load.dest)}행 ${t2.load.oids.length}건 · 도착 ${fmt(q.arrive)}`, { color: UI.gColor(me.g) });
+  },
+  async consign(id, _k, m) {
+    let c = ctxNow(); const o = c.gr.byId[id]; const M = MD.MODES[m];
+    let q = E.quoteConsign(o, m, c.clock, c.gr.ctx);
+    if (!q.ok) return UI.toast('🚫 ' + q.reason);
+    const ok = await UI.confirm(`${M.icon} ${M.label}로 보낼까요?`, `<b>${esc(o.name)}</b> → ${esc(o.dest)}<br>비용 <b>${q.cost}</b> · 도착 <b>${fmt(q.arrive)}</b> ${q.onTime ? '<span class="good">(정시)</span>' : '<span class="bad">(지연!)</span>'}<br>예상 이익 <b>${E.fmtSigned(o.price - q.cost)}</b> · 인력 ${q.ppl}명<br><span class="dim">위탁은 출발 후 되돌릴 수 없어요</span>`, '보내기');
+    if (!ok) return;
+    c = ctxNow();
+    q = E.quoteConsign(o, m, c.clock, c.gr.ctx);
+    if (!c.running || !q.ok) return UI.toast('🚫 ' + (q.reason || '진행 중이 아님'));
+    const did = E.uid('d');
+    const disp = { mode: m, truck: null, dest: o.dest, oids: [id], tons: o.ton, depart: c.clock, arrive: q.arrive, ret: q.arrive, cost: q.cost, ppl: q.ppl };
+    const sim = E.simulate(room, me.g, c.rid, c.clock, gd => { gd.disp = gd.disp || {}; gd.disp[did] = disp; });
+    if (sim.pplAvail < 0) return UI.toast('🚫 인력 부족');
+    if (sim.budgetLeft < 0) return UI.toast('🚫 예산 부족');
+    await db.set(`groups/${me.g}/rd/${c.rid}/disp/${did}`, disp);
+    UI.sfx('depart');
+  },
+  async store(id) {
+    const c = ctxNow(); const o = c.gr.byId[id];
+    if (!(await UI.confirm('📦 보관(이월)', `<b>${esc(o.name)}</b>을(를) 창고에 보관하고 내일 처리할까요?<br>보관료 ${MD.STORE_COST} · 내일 마감 <b>${fmt(o.deadline - 24)}</b><br>오늘의 인력·처리 한도는 반납됩니다.`))) return;
+    const c2 = ctxNow(); if (!c2.running) return;
+    await db.set(`groups/${me.g}/rd/${c.rid}/ord/${id}`, { st: 'stored', at: c2.clock });
+  },
+  async abandon(id) {
+    const c = ctxNow(); const o = c.gr.byId[id];
+    const pen = Math.round(o.price * MD.ABANDON_RATE);
+    if (!(await UI.confirm('❌ 포기할까요?', `<b>${esc(o.name)}</b><br>위약금 <b class="bad">−${pen}</b> (배송료 30%) · 별점 <b class="bad">−1.0</b><br>포기한 주문은 다른 회사에게 재수배될 수 있어요.`, '포기', 'danger'))) return;
+    const c2 = ctxNow(); if (!c2.running) return;
+    await db.set(`groups/${me.g}/rd/${c.rid}/ord/${id}`, { st: 'abandoned', at: c2.clock });
+    UI.sfx('bad');
+  },
+  async bid(id) {
+    const c = ctxNow(); const o = room.market[c.rid][id];
+    if (o.status !== 'vip' || c.clock >= o.t_in + E.vipWindow(c.R)) return UI.toast('입찰이 끝났어요');
+    const chk = E.canAccept(room, me.g, c.rid, o, c.clock);
+    if (!chk.ok) return UI.toast('🚫 ' + chk.why);
+    const inp = document.querySelector(`[data-bid="${id}"]`);
+    const price = parseInt((inp && inp.value) || bidDraft[id], 10);
+    if (!(price >= 1 && price <= o.fee)) return UI.toast(`입찰가는 1 ~ ${o.fee} 사이로`);
+    await db.set(`market/${c.rid}/${id}/bids/${me.g}`, { price, at: db.now() });
+    if (inp) inp.blur();
+    UI.sfx('take'); UI.toast(`⭐ ${price}에 입찰했어요`, { color: '#fbbf24' });
+  },
+  quote(id) { showQuote[id] = !showQuote[id]; render(true); },
+  async memo() {
+    const t = ($('#memo') && $('#memo').value.trim()) || '';
+    if (t.length < 5) return UI.toast('조금 더 자세히 써 주세요 (5자 이상)');
+    const rid = room.state.round;
+    await db.set(`groups/${me.g}/rd/${rid}/memo`, t);
+    UI.sfx('good');
+  },
+  async memoEdit() { const rid = room.state.round; await db.set(`groups/${me.g}/rd/${rid}/memo`, null); },
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  const f = act[b.dataset.act];
+  if (f) f(b.dataset.id, b.dataset.k, b.dataset.m);
+});
+document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.bid) bidDraft[e.target.dataset.bid] = e.target.value; });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.bid) act.bid(e.target.dataset.bid); });
+
+if (SOLO) bootSolo(); else autoJoin();
+</script>
+</body>
+</html>

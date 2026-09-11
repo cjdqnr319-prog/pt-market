@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>평택 물류 관제실 · 오늘의 물류 시장</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 30px 18px; background: radial-gradient(1200px 600px at 50% -10%, rgba(255,122,26,.16), transparent), var(--bg); }
+  .wrap { width: min(980px, 100%); }
+  h1 { font-size: clamp(30px, 5vw, 52px); margin: 0; letter-spacing: -1px; }
+  h1 span { color: var(--accent); }
+  .lead { color: var(--muted); font-size: 18px; margin: 8px 0 26px; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  a.tile { display: block; text-decoration: none; color: inherit; background: var(--panel); border: 1.5px solid var(--line2); border-radius: 18px; padding: 22px; transition: transform .12s, border-color .15s; }
+  a.tile:hover { transform: translateY(-3px); border-color: var(--accent); }
+  a.tile .ic { font-size: 44px; }
+  a.tile b { display: block; font-size: 22px; margin: 8px 0 4px; }
+  a.tile span { color: var(--muted); line-height: 1.6; }
+  a.tile.main { border-color: var(--accent); background: linear-gradient(160deg, rgba(255,122,26,.14), var(--panel) 60%); }
+  .foot { margin-top: 22px; color: var(--dim); font-size: 13px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎛️ 평택 물류 관제실 <span>「오늘의 물류 시장」</span></h1>
+  <div class="lead">중3 수송기술 4차시 · 공용 주문 시장 + 실시간 운영 타이쿤<br>6개 물류회사가 하루(6분) 동안 올라오는 주문을 선착순으로 가져가 트럭·철도·선박·항공으로 배차합니다.</div>
+  <div class="grid">
+    <a class="tile main" href="teacher.html"><div class="ic">🖥️</div><b>교사 · 전자칠판 시장판</b><span>방 만들기 · 게임 시계 · 주문 시장 · 지도 · 돌발 · 정산쇼</span></a>
+    <a class="tile main" href="student.html"><div class="ic">📱</div><b>모둠 태블릿 · 우리 회사 관제실</b><span>방 코드로 입장 → 수락 · 합적 · 위탁 · 출발 · VIP 입찰</span></a>
+    <a class="tile" href="teacher.html?local=1"><div class="ic">🧪</div><b>로컬 테스트 (한 컴퓨터)</b><span>인터넷 없이 같은 브라우저 탭끼리 동기화 — 교사 탭 + 학생 탭 여러 개로 미리 해 보기</span></a>
+    <a class="tile" href="student.html?solo=1"><div class="ic">📴</div><b>오프라인 폴백 · 1인 모드</b><span>시장판 동기화가 안 될 때: 교사가 주문을 불러주고, 태블릿은 로컬 배차·계산만</span></a>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="realtime.js"></script>
+<script>
+  document.getElementById('foot').innerHTML = '현재 연결 방식: <b>' + RT.label() + '</b>' +
+    (RT.backend() === 'firebase' ? '' : '<br>여러 태블릿에서 함께 하려면 <code>firebase-config.js</code>에 Firebase 설정을 넣으세요 (README 참고).');
+</script>
+</body>
+</html>

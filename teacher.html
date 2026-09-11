@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시장판 · 평택 물류 관제실</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { overflow: hidden; }
+  #app { display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh; }
+  /* 상단 */
+  #top { display: grid; grid-template-columns: minmax(250px, 1fr) auto minmax(300px, 1.35fr); align-items: center; gap: 18px; padding: 10px 18px 8px; background: linear-gradient(#111824, #0c1118); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 900; font-size: clamp(16px, 1.3vw, 22px); letter-spacing: -.3px; }
+  .brand small { display: block; font-size: .72em; color: var(--muted); font-weight: 600; margin-top: 3px; }
+  .brand .rn { color: var(--accent); }
+  .clockbox { text-align: center; }
+  #clock { font-size: clamp(38px, 3.6vw, 64px); font-weight: 900; color: var(--accent); text-shadow: 0 0 24px rgba(255,122,26,.35); line-height: 1; letter-spacing: 1px; }
+  #clockSub { font-size: 13px; color: var(--muted); margin-top: 2px; min-height: 17px; }
+  #timeline { position: relative; height: 16px; width: clamp(300px, 26vw, 500px); margin: 6px auto 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 99px; }
+  #timeline .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #ff7a1a88, var(--accent)); border-radius: 99px; }
+  #timeline .mk { position: absolute; top: -3px; transform: translateX(-50%); font-size: 12px; line-height: 1; }
+  #timeline .mk span { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--dim); white-space: nowrap; }
+  #timeline .tick { position: absolute; top: 3px; bottom: 3px; width: 1px; background: var(--line2); }
+  .lb { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .lbc { display: flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--gc); border-radius: 9px; padding: 5px 9px; font-size: 13px; transition: transform .3s; }
+  .lbc .rk { font-weight: 900; color: var(--muted); }
+  .lbc b { font-size: 14px; }
+  .lbc .st { color: var(--vip); font-weight: 800; }
+  .lbc .cs { font-weight: 800; }
+  /* 돌발 배너 */
+  #banner { display: flex; gap: 10px; padding: 0 18px; flex-wrap: wrap; }
+  #banner:empty { padding: 0; }
+  .pb { display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg, rgba(255,122,26,.28), rgba(255,122,26,.05)); border: 1px solid var(--accent); border-radius: 10px; padding: 6px 12px; margin: 7px 0; font-weight: 700; animation: pop .4s; }
+  .pb .ic { font-size: 22px; }
+  .pb small { color: var(--muted); font-weight: 600; }
+  /* 본문 */
+  main { display: grid; grid-template-columns: 60% 40%; min-height: 0; }
+  #market { overflow: auto; padding: 12px 14px 14px; }
+  .mhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+  .mhead h2 { margin: 0; font-size: 18px; }
+  .mhead .sum { color: var(--muted); font-size: 13px; }
+  #mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 10px; }
+  .mc { position: relative; background: var(--panel); border: 2px solid var(--line2); border-radius: 12px; padding: 9px 11px 8px; min-height: 112px; display: flex; flex-direction: column; gap: 3px; transition: background .5s, border-color .5s, opacity .5s, filter .5s; }
+  .mc.new { animation: pop .5s; }
+  .mc.open { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(255,122,26,.25); }
+  .mc.taken { background: var(--gsoft); border-color: var(--gc); }
+  .mc.expired, .mc.cancelled { opacity: .36; filter: grayscale(.8); }
+  .mc.bidding, .mc.judging { border-color: var(--vip); background: linear-gradient(160deg, rgba(251,191,36,.2), var(--panel) 70%); animation: vipGlow 1.2s infinite; }
+  .mc .l1 { display: flex; align-items: baseline; gap: 6px; }
+  .mc .dest { font-size: 22px; font-weight: 900; }
+  .mc .ton { font-weight: 800; color: var(--muted); }
+  .mc .nm { font-size: 13.5px; font-weight: 600; color: #cbd5e1; line-height: 1.25; }
+  .mc .tg { display: flex; gap: 4px; flex-wrap: wrap; min-height: 4px; }
+  .mc .l3 { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+  .mc .fee { font-size: 20px; font-weight: 900; color: #ffd8b8; }
+  .mc .urgent { color: var(--bad); animation: blink 1s infinite; font-weight: 800; }
+  .mc .own { position: absolute; right: 7px; top: 7px; background: var(--gc); color: #0a0e13; font-weight: 900; font-size: 12px; padding: 2px 8px; border-radius: 99px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc .stamp { position: absolute; right: 7px; top: 8px; font-size: 12px; font-weight: 800; color: var(--muted); }
+  .mc .cd { font-size: 26px; font-weight: 900; color: var(--vip); }
+  .mc .bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+  .mc .bars i { flex: 1; background: var(--vip); border-radius: 3px 3px 0 0; opacity: .8; min-width: 6px; transition: height .3s; }
+  #mapWrap { border-left: 1px solid var(--line); position: relative; min-height: 0; background: #0b1119; }
+  #map { position: absolute; inset: 0; }
+  .legend { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); background: rgba(10,14,19,.8); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); line-height: 1.7; }
+  .legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid #3a4960; vertical-align: middle; margin-right: 4px; }
+  .pausedTag { position: absolute; right: 14px; top: 12px; background: var(--warn); color: #1a1000; font-weight: 900; padding: 6px 14px; border-radius: 99px; font-size: 16px; }
+  /* 제어 바 */
+  #ctrl { display: flex; gap: 7px; align-items: center; padding: 7px 12px; background: #0c1118; border-top: 1px solid var(--line); flex-wrap: wrap; font-size: 14px; }
+  #ctrl .sep { width: 1px; height: 26px; background: var(--line2); margin: 0 3px; }
+  #ctrl .code { font-weight: 900; color: var(--accent); font-size: 18px; letter-spacing: 2px; }
+  #ctrl .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent2); }
+  #ctrl select { padding: 5px 8px; }
+  body.hideCtrl #ctrl { display: none; }
+  /* 오버레이 */
+  .ov { position: fixed; inset: 0; background: rgba(6,9,13,.95); z-index: 50; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 36px 24px 80px; }
+  .ov .in { width: min(1400px, 100%); }
+  .ov h1 { font-size: clamp(28px, 3vw, 46px); margin: 0 0 6px; }
+  .ov .sub { color: var(--muted); font-size: 18px; margin-bottom: 22px; }
+  .ov .close { position: fixed; right: 20px; top: 16px; z-index: 51; }
+  .ov.ghost { background: rgba(6,9,13,.72); }
+  .lobbyGrid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 26px; align-items: start; }
+  .bigcode { font-size: clamp(70px, 9vw, 150px); font-weight: 900; letter-spacing: 12px; color: var(--accent); line-height: 1; text-shadow: 0 0 40px rgba(255,122,26,.35); }
+  .joinurl { font-size: 18px; color: var(--muted); word-break: break-all; margin: 10px 0 16px; }
+  #qr { background: #fff; padding: 10px; border-radius: 12px; display: inline-block; }
+  #qr:empty { display: none; }
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .slot { border: 2px dashed var(--line2); border-radius: 14px; padding: 16px; min-height: 92px; }
+  .slot.on { border-style: solid; border-color: var(--gc); background: var(--gsoft); animation: pop .4s; }
+  .slot .no { font-weight: 900; color: var(--gc); font-size: 18px; }
+  .slot .nm { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .res3 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0; }
+  .res3 .card { text-align: center; }
+  .res3 .v { font-size: 34px; font-weight: 900; margin-top: 4px; }
+  .res3 .k { color: var(--muted); }
+  /* 정산 */
+  .st-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: 18px; }
+  .st-table th { text-align: left; color: var(--muted); font-weight: 600; font-size: 14px; padding: 0 12px; }
+  .st-table td { background: var(--panel); padding: 12px; }
+  .st-table td:first-child { border-radius: 12px 0 0 12px; border-left: 6px solid var(--gc); }
+  .st-table td:last-child { border-radius: 0 12px 12px 0; }
+  .st-table .bar { height: 14px; background: var(--gc); border-radius: 99px; min-width: 3px; transition: width 1s cubic-bezier(.2,.8,.2,1); }
+  .st-table .neg { background: var(--bad); }
+  .mline { font-size: 24px; font-weight: 800; margin: 22px 0; padding: 16px 20px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 14px; }
+  .hl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .hl .card h4 { margin: 0 0 8px; font-size: 16px; color: var(--accent2); }
+  .hl .card .big { font-size: 20px; font-weight: 800; line-height: 1.4; }
+  .memos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .memo { background: var(--panel); border-left: 5px solid var(--gc); border-radius: 10px; padding: 10px 12px; font-size: 15px; min-height: 60px; }
+  .podium { display: flex; gap: 18px; align-items: flex-end; justify-content: center; margin: 20px 0 30px; }
+  .pod { width: 220px; text-align: center; }
+  .pod .blk { background: var(--gsoft); border: 2px solid var(--gc); border-radius: 14px 14px 0 0; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 900; }
+  .pod .nm { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+  .pod .v { color: var(--muted); margin-bottom: 8px; }
+  /* 돌발 플래시 */
+  #flash { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 70; display: flex; align-items: center; justify-content: center; animation: fade .2s; }
+  #flash .fc { background: var(--panel); border: 3px solid var(--accent); border-radius: 26px; padding: 36px 54px; text-align: center; max-width: 900px; animation: pop .45s; box-shadow: 0 0 80px rgba(255,122,26,.4); }
+  #flash .ic { font-size: 110px; line-height: 1; }
+  #flash h2 { font-size: 54px; margin: 12px 0 8px; }
+  #flash p { font-size: 26px; margin: 0 0 12px; }
+  #flash .tip { color: var(--accent2); font-size: 22px; font-weight: 800; }
+  .kbd { font-size: 12px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand">🎛️ 평택 물류 관제실 · <span class="rn" id="roundName">오늘의 물류 시장</span><small id="roundSub">방 코드를 확인하세요</small></div>
+    <div class="clockbox">
+      <div id="clock" class="num">--:--</div>
+      <div id="timeline"></div>
+      <div id="clockSub"></div>
+    </div>
+    <div class="lb" id="lb"></div>
+  </header>
+  <div id="banner"></div>
+  <main>
+    <section id="market">
+      <div class="mhead"><h2>📋 주문 시장</h2><div class="sum" id="msum"></div></div>
+      <div id="mgrid"></div>
+    </section>
+    <section id="mapWrap">
+      <div id="map"></div>
+      <div class="legend"><i></i>도로(트럭) &nbsp;<i style="border-top:2px dashed #5b6b86"></i>철도<br><i style="border-top:2px dotted #1f5f8b"></i>해운 &nbsp;<i style="border-top:2px dashed #6b5a8e"></i>항공 &nbsp; ❄ 냉장트럭</div>
+      <div id="pausedTag" class="pausedTag hidden">⏸ 일시정지</div>
+    </section>
+  </main>
+  <footer id="ctrl">
+    <span>방 코드 <span class="code" id="cCode">----</span></span>
+    <span class="conn" id="cConn"></span>
+    <span class="sep"></span>
+    <button class="btn sm" data-prep="R0">R0 튜토리얼</button>
+    <button class="btn sm" data-prep="R1">R1 평일</button>
+    <button class="btn sm" data-prep="R2">R2 명절</button>
+    <button class="btn sm" data-prep="R3">R3 폭설</button>
+    <span class="sep"></span>
+    <button class="btn sm primary" id="bStart">▶ 시작</button>
+    <button class="btn sm" id="bPause">⏸ 일시정지</button>
+    <button class="btn sm" data-spd="1">×1</button>
+    <button class="btn sm" data-spd="2">×2</button>
+    <button class="btn sm" data-spd="4">×4</button>
+    <button class="btn sm" id="bJump" title="게임 시각 +1시간">⏭ +1h</button>
+    <button class="btn sm danger" id="bSettle">🏁 정산</button>
+    <span class="sep"></span>
+    <select id="popSel"><option value="">⚡ 돌발 수동 발동…</option></select>
+    <span class="sep"></span>
+    <button class="btn sm" id="bResult">📊 결과창</button>
+    <button class="btn sm" id="bFinal">🏆 최종 결산</button>
+    <button class="btn sm" id="bGroups">👥 모둠</button>
+    <button class="btn sm" id="bLobby">🏠 대기실</button>
+    <button class="btn sm" id="bSound">🔊</button>
+    <button class="btn sm" id="bFull">⛶</button>
+    <button class="btn sm ghost" id="bNew">새 방</button>
+    <span class="kbd">[H] 제어바 숨기기 · [Space] 시작/정지</span>
+  </footer>
+</div>
+<div id="ov"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="market-data.js"></script>
+<script src="engine.js"></script>
+<script src="realtime.js"></script>
+<script src="ui.js"></script>
+<script>
+'use strict';
+const { $, $$, esc } = UI;
+const qs = new URLSearchParams(location.search);
+let code = qs.get('room') || localStorage.getItem('ptm:teacherRoom') || RT.newCode();
+let db, host, map, room = {}, prevRoom = {};
+let sound = true, ovHidden = false, lastOvSig = '', firstLoad = true;
+const seenVis = new Set(), seenPops = new Set();
+const cards = new Map();
+
+function studentUrl() {
+  const u = new URL('student.html', location.href);
+  u.searchParams.set('room', code);
+  if (qs.get('local') === '1') u.searchParams.set('local', '1');
+  return u.href;
+}
+const curR = () => MD.roundById(room.state && room.state.round);
+const clockNow = () => E.clockOf(room.state, db.now());
+const joined = () => MD.GROUPS.filter(G => room.groups && room.groups[G.id] && room.groups[G.id].name);
+const gsty = g => { const G = MD.groupById(g); return G ? `--gc:${G.color};--gsoft:${G.soft}` : ''; };
+
+async function boot() {
+  db = RT.connect(code);
+  localStorage.setItem('ptm:teacherRoom', code);
+  const u = new URL(location.href); u.searchParams.set('room', code); history.replaceState(null, '', u);
+  if (!(await db.exists())) await db.update('', { meta: { game: 'pt-market', created: db.now() }, state: { phase: 'lobby' } });
+  host = new E.Host(db, () => room);
+  map = new UI.Map($('#map'));
+  $('#cCode').textContent = code;
+  $('#cConn').textContent = RT.label();
+  if (db.onConn) db.onConn(ok => { $('#cConn').textContent = ok ? RT.label() : '🔴 연결 끊김 — 재연결 중'; });
+  db.on(d => { prevRoom = room; room = d || {}; onRoom(); });
+  setInterval(() => host.tick(), 250);
+  setInterval(frame, 100);
+  setInterval(renderLB, 700);
+}
+
+// ───────────── 데이터 변화 감지 (토스트·효과음)
+function onRoom() {
+  const st = room.state || {}, rid = st.round;
+  if (firstLoad) {
+    firstLoad = false;
+    Object.entries(room.popups || {}).forEach(([r, ps]) => Object.keys(ps || {}).forEach(k => seenPops.add(r + k)));
+  } else if (rid && room.market && room.market[rid]) {
+    const pm = (prevRoom.market && prevRoom.market[rid]) || {};
+    Object.values(room.market[rid]).forEach(o => {
+      const p = pm[o.id];
+      if (!p || p.status === o.status) return;
+      if (o.status === 'taken' && o.vipWin) {
+        UI.sfx('vip');
+        UI.toast(`⭐ VIP 낙찰! <b>${esc(UI.gName(room, o.owner))}</b> · ${esc(o.name)} <b>${o.price}</b> <span class="muted">(배송료 ${o.fee})</span>`, { color: UI.gColor(o.owner), ms: 5000 });
+      } else if (o.status === 'taken') {
+        UI.sfx('take');
+        UI.toast(`<b style="color:${UI.gColor(o.owner)}">${esc(UI.gName(room, o.owner))}</b> 수락! · ${esc(o.dest)} ${esc(o.name)}`, { color: UI.gColor(o.owner) });
+      } else if (o.status === 'expired' && p.status === 'vip') {
+        UI.toast(`⭐ VIP 「${esc(o.name)}」 입찰 없음 → 유찰`, { color: '#8d9aab' });
+      }
+    });
+  }
+  // 새 돌발
+  Object.entries((rid && room.popups && room.popups[rid]) || {}).forEach(([k, p]) => {
+    if (seenPops.has(rid + k)) return;
+    seenPops.add(rid + k);
+    flashPopup(p);
+  });
+  renderOverlay();
+  renderCtrl();
+}
+
+function flashPopup(p) {
+  UI.sfx('alert');
+  const el = document.createElement('div');
+  el.id = 'flash';
+  const P = MD.POPUPS[p.type];
+  el.innerHTML = `<div class="fc"><div class="ic">${p.icon}</div><h2>${esc(p.title)}</h2><p>${esc(p.desc)}</p><div class="tip">💡 ${esc(P.tip)}</div></div>`;
+  el.onclick = () => el.remove();
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+// ───────────── 매 프레임
+function frame() {
+  if (!db) return;
+  const st = room.state || {}, R = curR(), now = db.now();
+  const clock = clockNow();
+  const fin = R ? E.isFinished(room, R.id) : false;
+  $('#clock').textContent = R ? E.fmtTime(clock) : '--:--';
+  $('#roundName').textContent = R ? R.name + (R.snow ? ' ❄' : '') : '오늘의 물류 시장';
+  $('#roundSub').textContent = R ? `트럭 ${R.trucks} · 인력 ${R.ppl} · 예산 ${R.budget} · 주문 ${R.orders.length}건` : '대기실';
+  $('#pausedTag').classList.toggle('hidden', st.phase !== 'paused');
+  if (R) {
+    const realLeft = st.phase === 'running' || st.phase === 'paused' ? (MD.TIME.CLOSE - clock) * R.secPerHour / (st.speed || 1) : 0;
+    const mm = Math.floor(realLeft / 60), ss = Math.floor(realLeft % 60);
+    $('#clockSub').textContent = { ready: '준비 완료 — ▶ 시작을 누르세요', running: `남은 실제 시간 ${mm}:${String(ss).padStart(2, '0')}${st.speed > 1 ? ' · ×' + st.speed : ''}${clock >= 22 ? ' · 영업 종료(출발 불가)' : ''}`, paused: '⏸ 일시정지', settle: '폐장 · 정산', final: '최종 결산' }[st.phase] || '';
+  } else $('#clockSub').textContent = '';
+  renderTimeline(R, clock);
+  renderBanner(R, clock);
+  renderMarket(R, clock, fin);
+  map.draw(room, now);
+}
+
+let tlSig = '';
+function renderTimeline(R, clock) {
+  const tl = $('#timeline');
+  const pos = h => ((h - 6) / 18 * 100).toFixed(2) + '%';
+  const sig = R ? R.id : '';
+  if (sig !== tlSig) {
+    tlSig = sig;
+    let h = '<div class="fill"></div>';
+    for (let t = 9; t < 24; t += 3) h += `<div class="tick" style="left:${pos(t)}"></div>`;
+    if (R) {
+      h += `<div class="mk" style="left:${pos(18)}">🚆<span>18 철도막차</span></div>`;
+      h += `<div class="mk" style="left:${pos(22)}">🚫<span>22 출발마감</span></div>`;
+      (R.popupTimes || []).forEach(t => { h += `<div class="mk" style="left:${pos(t)}">⚡</div>`; });
+      R.orders.filter(o => o.vip).forEach(o => { h += `<div class="mk" style="left:${pos(o.t_in)}">⭐</div>`; });
+    }
+    tl.innerHTML = h;
+  }
+  const f = tl.querySelector('.fill');
+  if (f) f.style.width = R ? pos(Math.min(24, clock)) : '0%';
+}
+
+let bnSig = '';
+function renderBanner(R, clock) {
+  const ps = R ? E.popupList(room, R.id).filter(p => clock >= p.at && clock < p.until) : [];
+  const sig = ps.map(p => p.type + p.at).join('|');
+  if (sig === bnSig) return;
+  bnSig = sig;
+  $('#banner').innerHTML = ps.map(p => `<div class="pb"><span class="ic">${p.icon}</span><span>${esc(p.title)} <small>~${E.fmtTime(p.until)}</small><br><small>${esc(p.desc)}</small></span></div>`).join('');
+}
+
+function cardHtml(o, s, clock, R) {
+  const st = room.state || {};
+  let top = '', foot = '';
+  const left = o.deadline - clock;
+  if (s === 'open') {
+    top = '';
+    foot = `<span class="${left < 1.5 ? 'urgent' : 'muted'}">⏰ ${E.fmtTime(o.deadline)}${left < 24 ? ` · ${E.fmtDur(left)}` : ''}</span><span class="fee num">${o.fee}</span>`;
+  } else if (s === 'bidding') {
+    const secs = Math.max(0, Math.ceil((o.t_in + E.vipWindow(R) - clock) * R.secPerHour / (st.speed || 1)));
+    const bids = E.arr(o.bids).map(b => b.price).sort((a, b) => a - b);
+    top = `<span class="stamp" style="color:var(--vip)">역경매</span>`;
+    foot = `<span><span class="cd num">${secs}</span><span class="muted">초 · 입찰 ${bids.length}</span></span><span class="fee num">≤${o.fee}</span>`;
+    foot += `</div><div class="bars">${bids.map(p => `<i style="height:${Math.max(8, p / o.fee * 100)}%"></i>`).join('')}`;
+  } else if (s === 'judging') {
+    top = `<span class="stamp" style="color:var(--vip)">판정 중…</span>`;
+    foot = `<span class="muted">입찰 ${E.arr(o.bids).length}건</span><span class="fee num">≤${o.fee}</span>`;
+  } else if (s === 'taken') {
+    top = `<span class="own">${esc(UI.gName(room, o.owner))}</span>`;
+    foot = o.vipWin ? `<span>⭐ 낙찰 <b class="num">${o.price}</b></span><span class="muted num">/${o.fee}</span>` : `<span class="muted">⏰ ${E.fmtTime(o.deadline)}</span><span class="fee num">${o.fee}</span>`;
+  } else if (s === 'cancelled') {
+    top = `<span class="stamp">📞 취소</span>`; foot = `<span></span><span class="fee num">${o.fee}</span>`;
+  } else {
+    top = `<span class="stamp">유찰</span>`; foot = `<span></span><span class="fee num">${o.fee}</span>`;
+  }
+  return `${top}<div class="l1"><span class="dest">${esc(o.dest)}</span><span class="ton">${o.ton}톤</span></div>
+    <div class="nm">${esc(o.name)}</div><div class="tg">${UI.tags(o)}</div><div class="l3">${foot}</div>`;
+}
+
+function renderMarket(R, clock, fin) {
+  const grid = $('#mgrid');
+  if (!R || !room.market || !room.market[R.id]) { if (grid.children.length) { grid.innerHTML = ''; cards.clear(); } $('#msum').textContent = ''; return; }
+  const all = E.marketList(room, R.id).filter(o => !o.carried);
+  const vis = [];
+  const cnt = { open: 0, taken: 0, expired: 0, cancelled: 0, bidding: 0, judging: 0 };
+  all.forEach(o => { const s = E.marketStatus(o, clock, R, fin); if (s !== 'hidden') { vis.push([o, s]); cnt[s] = (cnt[s] || 0) + 1; } });
+  vis.sort((a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
+  $('#msum').textContent = `등장 ${vis.length}/${all.length} · 열림 ${cnt.open + cnt.bidding + cnt.judging} · 수락 ${cnt.taken} · 유찰 ${cnt.expired + cnt.cancelled}`;
+  let newOne = false;
+  const keep = new Set();
+  vis.forEach(([o, s], i) => {
+    keep.add(o.id);
+    let el = cards.get(o.id);
+    const html = cardHtml(o, s, clock, R);
+    const cls = 'mc ' + s;
+    if (!el) {
+      el = document.createElement('div');
+      cards.set(o.id, el);
+      if (!seenVis.has(o.id)) { seenVis.add(o.id); if (!firstFrameMarket) { el.classList.add('new'); newOne = true; } }
+    }
+    if (el._h !== html) { el.innerHTML = html; el._h = html; }
+    const fullCls = cls + (el.classList.contains('new') ? ' new' : '');
+    if (el.className !== fullCls) el.className = fullCls;
+    el.setAttribute('style', o.owner ? gsty(o.owner) : '');
+    if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+  });
+  cards.forEach((el, id) => { if (!keep.has(id)) { el.remove(); cards.delete(id); } });
+  if (newOne) UI.sfx(vis.some(([o, s]) => s === 'bidding') && !seenVip.has(R.id + vis[0][0].id) ? 'vip' : 'ding');
+  vis.forEach(([o, s]) => { if (s === 'bidding') seenVip.add(R.id + o.id); });
+  firstFrameMarket = false;
+}
+let firstFrameMarket = true;
+const seenVip = new Set();
+
+// ───────────── 미니 리더보드
+function totalsAll() {
+  const now = db.now();
+  return joined().map(G => Object.assign({ G }, E.groupTotals(room, G.id, now)));
+}
+function renderLB() {
+  if (!db) return;
+  const R = curR();
+  const rows = totalsAll();
+  const val = t => R && R.tutorial ? (t.cur ? t.cur.profit : 0) : t.cash;
+  rows.sort((a, b) => val(b) - val(a));
+  $('#lb').innerHTML = rows.map((t, i) => `<div class="lbc" style="${gsty(t.G.id)}"><span class="rk">${i + 1}</span><b>${esc(room.groups[t.G.id].name)}</b><span class="st">★${E.fmtStar(t.shownStars)}</span><span class="cs num ${val(t) < 0 ? 'bad' : ''}">${E.fmtSigned(val(t))}</span></div>`).join('') || '<span class="muted">모둠 입장 대기 중…</span>';
+}
+
+// ───────────── 정산 통계
+function roundStats(rid) {
+  const R = MD.roundById(rid);
+  const list = E.marketList(room, rid).filter(o => !o.carried);
+  const grs = {};
+  joined().forEach(G => { grs[G.id] = E.groupRound({ room, g: G.id, rid, clock: MD.TIME.CLOSE, finished: true }); });
+  const c = { total: list.length, ontime: 0, late: 0, abandon: 0, store: 0, nobid: 0, cancel: 0 };
+  list.forEach(o => {
+    if (o.status === 'cancelled') return c.cancel++;
+    if (o.status !== 'taken' || !grs[o.owner]) return c.nobid++;
+    const gr = grs[o.owner];
+    const ev = gr.events.find(e => e.o && e.o.id === o.id && e.type !== 'cost');
+    if (!ev) return c.nobid++;
+    if (ev.type === 'ontime') c.ontime++; else if (ev.type === 'late') c.late++; else if (ev.type === 'abandon') c.abandon++; else if (ev.type === 'store') c.store++;
+  });
+  // 명장면
+  let combo = null, vipLow = null, regret = null;
+  Object.entries(grs).forEach(([g, gr]) => {
+    gr.disps.filter(d => d.mode === 'truck').forEach(d => {
+      const tons = d.oids.reduce((s, id) => s + gr.byId[id].ton, 0);
+      if (d.oids.length > 1 && (!combo || d.oids.length > combo.n || (d.oids.length === combo.n && tons > combo.tons))) combo = { g, n: d.oids.length, tons, dest: d.dest, cost: d.cost };
+    });
+    gr.orders.filter(o => o.vipWin).forEach(o => { const r = o.price / o.fee; if (!vipLow || r < vipLow.r) vipLow = { g, o, r }; });
+    gr.events.filter(e => e.type === 'abandon').forEach(e => { if (!regret || e.o.price > regret.o.price) regret = { g, o: e.o, pen: e.pen, auto: e.auto }; });
+  });
+  return { R, grs, c, combo, vipLow, regret };
+}
+
+// ───────────── 오버레이 (대기실·준비·정산·최종)
+function renderOverlay() {
+  const st = room.state || {}, phase = st.phase || 'lobby';
+  const box = $('#ov');
+  const sig = phase + '|' + st.round + '|' + JSON.stringify(room.groups || {}).length + '|' + JSON.stringify(room.market && room.market[st.round] || {}).length + '|' + ovHidden;
+  if (sig === lastOvSig && phase !== 'settle') return;
+  lastOvSig = sig;
+  if (ovHidden && ['settle', 'final', 'ready'].includes(phase)) { box.innerHTML = `<button class="btn primary close" onclick="ovHidden=false;lastOvSig='';renderOverlay()">📊 결과창 다시 보기</button>`; return; }
+  if (phase === 'lobby') return box.innerHTML = lobbyHtml(), drawQR();
+  if (phase === 'ready') return box.innerHTML = readyHtml();
+  if (phase === 'settle') return box.innerHTML = settleHtml(st.round);
+  if (phase === 'final') return box.innerHTML = finalHtml();
+  box.innerHTML = '';
+}
+
+function lobbyHtml() {
+  const slots = MD.GROUPS.map(G => {
+    const g = room.groups && room.groups[G.id];
+    return `<div class="slot ${g && g.name ? 'on' : ''}" style="${gsty(G.id)}"><div class="no">${G.no}모둠</div><div class="nm">${g && g.name ? esc(g.name) : '<span class="dim">입장 대기</span>'}</div></div>`;
+  }).join('');
+  return `<div class="ov"><div class="in">
+    <h1>🎛️ 평택 물류 관제실 「오늘의 물류 시장」</h1>
+    <div class="sub">6개 물류회사가 공용 시장에서 주문을 선착순으로 가져가 하루(6분) 동안 배차합니다.</div>
+    <div class="lobbyGrid">
+      <div class="card">
+        <div class="muted" style="font-size:20px">모둠 태블릿에서 입장 · 방 코드</div>
+        <div class="bigcode num">${esc(code)}</div>
+        <div class="joinurl">${esc(studentUrl())}</div>
+        <div id="qr"></div>
+      </div>
+      <div>
+        <div class="slots">${slots}</div>
+        <div class="card" style="margin-top:14px;line-height:1.8">
+          <b>하루 규칙 요약</b><br>
+          🚚 트럭 일반1·냉장1 — 같은 목적지 합적(≤10톤), 왕복 후 재사용<br>
+          🚆 철도(18시 막차) · 🚢 선박(인력 2) · ✈️ 항공(≤3톤) 위탁<br>
+          👷 배차 1편 = 인력 1명 · 📥 동시 처리 최대 4건 · ⭐VIP는 10초 역경매<br>
+          정시 ★+0.1 · 지연 ★−0.3(+10%/h) · 포기 ★−1(위약 30%)
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn lg primary" data-prep="R0">R0 튜토리얼 준비</button>
+          <button class="btn lg" data-prep="R1">R1 평일 바로 준비</button>
+        </div>
+      </div>
+    </div></div></div>`;
+}
+function drawQR() {
+  const el = $('#qr');
+  if (!el || !window.QRCode || location.protocol === 'file:') return;
+  el.innerHTML = '';
+  try { new QRCode(el, { text: studentUrl(), width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M }); } catch (e) { }
+}
+
+function readyHtml() {
+  const R = curR(); if (!R) return '';
+  const vip = R.orders.filter(o => o.vip).length;
+  const carried = E.arr(room.market && room.market[R.id]).filter(o => o.carried).length;
+  return `<div class="ov ghost"><div class="in">
+    <h1>${R.snow ? '❄ ' : '☀ '}${esc(R.name)}</h1>
+    <div class="sub">${esc(R.story)}</div>
+    <div class="res3">
+      <div class="card"><div class="k">🚚 트럭</div><div class="v">${R.trucks}</div></div>
+      <div class="card"><div class="k">👷 인력 (편수)</div><div class="v">${R.ppl}명</div></div>
+      <div class="card"><div class="k">💵 예산 (지출 한도)</div><div class="v">${R.budget}</div></div>
+      <div class="card"><div class="k">📋 주문</div><div class="v">${R.orders.length}건</div></div>
+    </div>
+    <div class="card" style="font-size:18px;line-height:1.9">
+      ⏱ 06:00 → 24:00 = 실제 ${Math.round(R.secPerHour * 18 / 60)}분 (게임 1시간 = ${R.secPerHour}초)<br>
+      ${vip ? `⭐ VIP ${vip}건 — 10초 역경매 (최저가 낙찰, 동점은 별점 순)<br>` : ''}
+      ${R.popupTimes.length ? `⚡ 돌발 ${R.popupTimes.length}회 — ${R.popupTimes.map(E.fmtTime).join(', ')}<br>` : '돌발 없음<br>'}
+      ${R.snow ? '❄ 폭설: 트럭 40km/h · 항공 결항<br>' : ''}
+      ${R.storage ? '📦 보관(이월) 가능 — 마감이 내일인 화물만, 20<br>' : ''}
+      ${carried ? `📦 어제 이월된 화물 ${carried}건이 해당 회사에 들어와 있습니다.<br>` : ''}
+      ${R.tutorial ? '🎓 튜토리얼은 기록되지 않습니다. 마음껏 실험해 보세요!' : ''}
+    </div>
+    <div style="margin-top:22px;display:flex;gap:12px"><button class="btn lg primary" onclick="host.start()">▶ 하루 시작</button><button class="btn lg" onclick="ovHidden=true;lastOvSig='';renderOverlay()">시장판 미리 보기</button></div>
+  </div></div>`;
+}
+
+function settleHtml(rid) {
+  const { R, grs, c, combo, vipLow, regret } = roundStats(rid);
+  const rows = Object.entries(grs).sort((a, b) => b[1].profit - a[1].profit);
+  const maxP = Math.max(1, ...rows.map(([, g]) => Math.abs(g.profit)));
+  const now = db.now();
+  const trs = rows.map(([g, gr], i) => {
+    const tot = E.groupTotals(room, g, now);
+    const rate = gr.onTimeRate == null ? '-' : Math.round(gr.onTimeRate * 100) + '%';
+    return `<tr style="${gsty(g)}"><td><b>${i + 1}. ${esc(UI.gName(room, g))}</b></td>
+      <td style="width:28%"><div class="bar ${gr.profit < 0 ? 'neg' : ''}" style="width:${Math.abs(gr.profit) / maxP * 100}%"></div></td>
+      <td class="num"><b class="${gr.profit < 0 ? 'bad' : ''}">${E.fmtSigned(gr.profit)}</b></td>
+      <td class="num muted">${gr.revenue} / −${gr.cost} / −${gr.penalty}</td>
+      <td class="num">${gr.onTime + gr.late}건 · ${rate}</td>
+      <td class="num"><span class="${gr.starDelta >= 0 ? 'good' : 'bad'}">${E.fmtStarDelta(gr.starDelta)}</span> → ★${E.fmtStar(R.tutorial ? 3 + gr.starDelta : tot.stars)}</td></tr>`;
+  }).join('');
+  const nm = g => `<b style="color:${UI.gColor(g)}">${esc(UI.gName(room, g))}</b>`;
+  const memos = rows.map(([g, gr]) => `<div class="memo" style="${gsty(g)}"><b>${esc(UI.gName(room, g))}</b><br>${gr.memo ? esc(gr.memo) : '<span class="dim">회고 작성 중…</span>'}</div>`).join('');
+  const idx = MD.ROUNDS.findIndex(r => r.id === rid);
+  const next = MD.ROUNDS[idx + 1];
+  return `<div class="ov"><div class="in">
+    <button class="btn close" onclick="ovHidden=true;lastOvSig='';renderOverlay()">✕ 시장판 보기</button>
+    <h1>🏁 ${esc(R.name)} 정산</h1>
+    <div class="sub">${R.tutorial ? '튜토리얼 — 기록되지 않습니다' : '이익 = 매출 − 비용 − 위약금 · 별점은 다음 날 배송료 배수(★4↑×1.1 / ★3↑×1.0 / ★2↑×0.9 / 그 이하 ×0.8)'}</div>
+    <table class="st-table"><tr><th>회사</th><th>이익</th><th></th><th>매출 / 비용 / 위약</th><th>배송 · 정시율</th><th>별점</th></tr>${trs || '<tr><td colspan=6>참가 모둠 없음</td></tr>'}</table>
+    <div class="mline">📋 시장 처리율 — ${c.total}건 중 <span class="good">${c.ontime}건 정시 배송</span> · <span class="warn">${c.late}건 지연</span> · ${c.nobid}건 유찰${c.cancel ? ` · ${c.cancel}건 취소` : ''}${c.abandon ? ` · <span class="bad">${c.abandon}건 포기</span>` : ''}${c.store ? ` · ${c.store}건 보관` : ''}</div>
+    <div class="hl">
+      <div class="card"><h4>🚚 최고 합적</h4><div class="big">${combo ? `${nm(combo.g)}<br>${combo.dest}행 ${combo.n}건 한 번에 (${combo.tons}톤, 운임 ${combo.cost})` : '<span class="dim">합적 없음</span>'}</div></div>
+      <div class="card"><h4>⭐ 최저가 VIP 낙찰</h4><div class="big">${vipLow ? `${nm(vipLow.g)}<br>${esc(vipLow.o.name)} ${vipLow.o.fee} → <b>${vipLow.o.price}</b> (${Math.round((1 - vipLow.r) * 100)}% 할인)` : '<span class="dim">VIP 낙찰 없음</span>'}</div></div>
+      <div class="card"><h4>💔 가장 아까운 포기</h4><div class="big">${regret ? `${nm(regret.g)}<br>${esc(regret.o.name)} (배송료 ${regret.o.price}, 위약 ${regret.pen})${regret.auto ? ' — 출발 못 함' : ''}` : '<span class="good">포기 없음 👏</span>'}</div></div>
+    </div>
+    <h3 style="margin-top:26px">✍️ 한 줄 회고 — 오늘 가장 잘한/후회한 결정</h3>
+    <div class="memos">${memos}</div>
+    <div style="margin-top:26px;display:flex;gap:12px;flex-wrap:wrap">
+      ${next ? `<button class="btn lg primary" data-prep="${next.id}">다음 날 → ${esc(next.name)} 준비</button>` : ''}
+      ${!R.tutorial ? `<button class="btn lg ${next ? '' : 'primary'}" onclick="host.final()">🏆 최종 결산</button>` : ''}
+    </div>
+  </div></div>`;
+}
+
+function finalHtml() {
+  const now = db.now();
+  const rows = totalsAll().sort((a, b) => b.cash - a.cash);
+  const podOrder = [1, 0, 2].filter(i => rows[i]);
+  const heights = [200, 150, 110];
+  const pod = podOrder.map(i => { const t = rows[i]; return `<div class="pod" style="${gsty(t.G.id)}"><div class="nm">${esc(UI.gName(room, t.G.id))}</div><div class="v num">이익 ${E.fmtSigned(t.cash)} · ★${E.fmtStar(t.stars)}</div><div class="blk" style="height:${heights[i]}px">${i + 1}</div></div>`; }).join('');
+  const rids = MD.ROUNDS.filter(r => !r.tutorial).map(r => r.id);
+  const trs = rows.map((t, i) => {
+    const rates = rids.map(r => t.per[r]).filter(Boolean);
+    const on = rates.reduce((s, g) => s + g.onTime, 0), all = rates.reduce((s, g) => s + g.onTime + g.late, 0);
+    return `<tr style="${gsty(t.G.id)}"><td><b>${i + 1}. ${esc(UI.gName(room, t.G.id))}</b></td>${rids.map(r => `<td class="num">${t.per[r] ? E.fmtSigned(t.per[r].profit) : '-'}</td>`).join('')}<td class="num"><b>${E.fmtSigned(t.cash)}</b></td><td class="num">${all ? Math.round(on / all * 100) + '%' : '-'}</td><td class="num">★${E.fmtStar(t.stars)}</td></tr>`;
+  }).join('');
+  const best = (f) => rows.slice().sort((a, b) => f(b) - f(a))[0];
+  const topStar = best(t => t.stars);
+  const combos = t => rids.reduce((s, r) => s + (t.per[r] ? t.per[r].disps.filter(d => d.mode === 'truck' && d.oids.length > 1).reduce((x, d) => x + d.oids.length, 0) : 0), 0);
+  const topCombo = best(combos);
+  return `<div class="ov"><div class="in">
+    <button class="btn close" onclick="ovHidden=true;lastOvSig='';renderOverlay()">✕ 닫기</button>
+    <h1>🏆 최종 결산 — 3일간의 물류 전쟁</h1>
+    <div class="sub">R1 평일 · R2 명절 전날 · R3 폭설 누적 이익 순위</div>
+    <div class="podium">${pod}</div>
+    <table class="st-table"><tr><th>회사</th>${rids.map(r => `<th>${MD.roundById(r).name}</th>`).join('')}<th>누적 이익</th><th>정시율</th><th>최종 별점</th></tr>${trs}</table>
+    <div class="hl" style="margin-top:20px">
+      <div class="card"><h4>⭐ 고객 신뢰왕 (별점)</h4><div class="big">${topStar ? `${esc(UI.gName(room, topStar.G.id))} ★${E.fmtStar(topStar.stars)}` : '-'}</div></div>
+      <div class="card"><h4>🚚 합적왕</h4><div class="big">${topCombo && combos(topCombo) ? `${esc(UI.gName(room, topCombo.G.id))} — 합적으로 ${combos(topCombo)}건 운송` : '-'}</div></div>
+      <div class="card"><h4>💭 생각해 보기</h4><div class="big" style="font-size:16px;font-weight:600">물류 5요소(수송·보관·하역·포장·정보) 중 오늘 우리 회사의 병목은 무엇이었나요?</div></div>
+    </div>
+  </div></div>`;
+}
+
+// ───────────── 제어
+function renderCtrl() {
+  const st = room.state || {};
+  $$('[data-spd]').forEach(b => b.classList.toggle('on', +b.dataset.spd === (st.speed || 1)));
+  $$('#ctrl [data-prep]').forEach(b => b.classList.toggle('on', b.dataset.prep === st.round && st.phase !== 'lobby'));
+  $('#bStart').disabled = !['ready', 'paused'].includes(st.phase);
+  $('#bPause').disabled = st.phase !== 'running';
+  $('#bSettle').disabled = !['running', 'paused'].includes(st.phase);
+}
+async function prep(rid) {
+  const st = room.state || {};
+  const R = MD.roundById(rid);
+  if (['running', 'paused'].includes(st.phase) && !(await UI.confirm('라운드 준비', `진행 중인 하루를 중단하고 <b>${R.name}</b>을(를) 준비할까요?`))) return;
+  if (room.market && room.market[rid] && st.round !== rid && !(await UI.confirm('다시 하기', `<b>${R.name}</b> 기록이 이미 있습니다. 초기화하고 다시 준비할까요?`, '초기화', 'danger'))) return;
+  ovHidden = false; lastOvSig = '';
+  seenVis.clear(); firstFrameMarket = true;
+  await host.prepareRound(rid);
+}
+document.addEventListener('click', e => {
+  UI.unlockAudio();
+  const p = e.target.closest('[data-prep]'); if (p) return prep(p.dataset.prep);
+  const s = e.target.closest('[data-spd]'); if (s) return host.setSpeed(+s.dataset.spd);
+});
+$('#bStart').onclick = () => { ovHidden = false; host.start(); };
+$('#bPause').onclick = () => host.pause();
+$('#bJump').onclick = () => { const c = clockNow(); host.jump(c + 1); };
+$('#bSettle').onclick = async () => { if (await UI.confirm('정산', '지금 하루를 마감하고 정산할까요? (출발 못 한 화물은 포기 처리)', '정산', 'danger')) { ovHidden = false; host.finishNow(); } };
+$('#bResult').onclick = () => { ovHidden = false; lastOvSig = ''; renderOverlay(); };
+$('#bFinal').onclick = async () => { if (await UI.confirm('최종 결산', '최종 결산 화면으로 넘어갈까요?')) { ovHidden = false; host.final(); } };
+$('#bLobby').onclick = async () => { if (await UI.confirm('대기실', '대기실(방 코드 화면)로 돌아갈까요? 기록은 유지됩니다.')) { ovHidden = false; host.lobby(); } };
+$('#bSound').onclick = () => { sound = !sound; UI.setMuted(!sound); $('#bSound').textContent = sound ? '🔊' : '🔇'; };
+$('#bFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+$('#bNew').onclick = async () => { if (await UI.confirm('새 방 만들기', '새 방 코드로 처음부터 시작할까요? (현재 방 기록은 그대로 남습니다)')) { localStorage.removeItem('ptm:teacherRoom'); const u = new URL(location.href); u.searchParams.delete('room'); location.href = u; } };
+Object.entries(MD.POPUPS).forEach(([k, p]) => { const o = document.createElement('option'); o.value = k; o.textContent = `${p.icon} ${p.title}`; $('#popSel').appendChild(o); });
+$('#popSel').onchange = async e => {
+  const t = e.target.value; e.target.value = '';
+  const st = room.state || {};
+  if (!t || !['running', 'paused'].includes(st.phase)) return UI.toast('하루가 진행 중일 때만 발동할 수 있어요');
+  const pop = await host.firePopup(st.round, 'm' + Date.now(), t, clockNow());
+  if (!pop) UI.toast('지금은 조건이 맞지 않아 발동할 수 없어요 (예: 포기된 주문 없음)');
+};
+$('#bGroups').onclick = groupAdmin;
+async function groupAdmin() {
+  const rows = MD.GROUPS.map(G => {
+    const g = room.groups && room.groups[G.id];
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)"><b style="color:${G.color};width:56px">${G.no}모둠</b><span style="flex:1">${g ? esc(g.name || '') + ` <span class="dim">PIN ${esc(g.pin || '-')}</span>` : '<span class="dim">미입장</span>'}</span>${g ? `<button class="btn sm" data-pin="${G.id}">PIN 초기화</button><button class="btn sm danger" data-del="${G.id}">삭제</button>` : ''}</div>`;
+  }).join('');
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal"><h3>👥 모둠 관리</h3><div class="muted" style="margin-bottom:8px">태블릿을 바꿔야 하면 PIN 초기화 후 다시 입장시키세요.</div>${rows}<div class="row"><button class="btn primary" data-x>닫기</button></div></div>`;
+  bg.onclick = async e => {
+    const t = e.target;
+    if (t.dataset.x != null || t === bg) return bg.remove();
+    if (t.dataset.pin) { await db.set(`groups/${t.dataset.pin}/pin`, null); bg.remove(); UI.toast('PIN 초기화 완료'); }
+    if (t.dataset.del && await UI.confirm('모둠 삭제', '이 모둠의 모든 기록을 지울까요?', '삭제', 'danger')) { await db.set(`groups/${t.dataset.del}`, null); bg.remove(); }
+  };
+  document.body.appendChild(bg);
+}
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === 'h' || e.key === 'H' || e.key === 'ㅗ') document.body.classList.toggle('hideCtrl');
+  if (e.code === 'Space') { e.preventDefault(); const st = room.state || {}; if (st.phase === 'running') host.pause(); else if (['ready', 'paused'].includes(st.phase)) host.start(); }
+});
+
+boot().catch(err => { console.error(err); UI.toast('연결 실패: ' + err.message, { ms: 8000 }); });
+</script>
+</body>
+</html>
