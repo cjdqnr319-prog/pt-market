@@ -38,7 +38,7 @@
     air:   { key: 'air',   icon: '✈️', label: '항공 위탁', speed: 600, extra: 3.5, perKm: 1.2, base: 70, cold: 0,  ppl: 1, maxTon: 3 },
   };
   // 트럭 편성: n = 일반, c = 냉장. 라운드에 fleet 를 주면 그 라운드만 다르게
-  const FLEET_DEFAULT = ['n1', 'c1'];
+  const FLEET_DEFAULT = ['n1', 'n2', 'c1'];
   const fleetLabel = f => { const n = f.filter(k => k[0] === 'n').length, c = f.length - n; return `일반${n}·냉장${c}`; };
   const STORE_COST = 20;          // 보관(이월)
   const ABANDON_RATE = 0.3;       // 수락 후 포기 위약 30%
