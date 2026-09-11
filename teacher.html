@@ -623,7 +623,12 @@ $('#bFinal').onclick = async () => { if (await UI.confirm('최종 결산', '최�
 $('#bLobby').onclick = async () => { if (await UI.confirm('대기실', '대기실(방 코드 화면)로 돌아갈까요? 기록은 유지됩니다.')) { ovHidden = false; host.lobby(); } };
 $('#bSound').onclick = () => { sound = !sound; UI.setMuted(!sound); $('#bSound').textContent = sound ? '🔊' : '🔇'; };
 $('#bFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
-$('#bNew').onclick = async () => { if (await UI.confirm('새 방 만들기', '새 방 코드로 처음부터 시작할까요? (현재 방 기록은 그대로 남습니다)')) { localStorage.removeItem('ptm:teacherRoom'); const u = new URL(location.href); u.searchParams.delete('room'); location.href = u; } };
+$('#bNew').onclick = async () => {
+  if (!(await UI.confirm('새 방 만들기', '새 방 코드로 처음부터 시작할까요?<br><span class="dim">현재 방은 닫히고(기록은 남음), 접속 중인 모둠 태블릿은 자동으로 입장 화면으로 돌아갑니다.</span>'))) return;
+  try { await db.set('meta/closed', true); } catch (e) { }
+  localStorage.removeItem('ptm:teacherRoom');
+  const u = new URL(location.href); u.searchParams.delete('room'); location.href = u;
+};
 Object.entries(MD.POPUPS).forEach(([k, p]) => { const o = document.createElement('option'); o.value = k; o.textContent = `${p.icon} ${p.title}`; $('#popSel').appendChild(o); });
 $('#popSel').onchange = async e => {
   const t = e.target.value; e.target.value = '';

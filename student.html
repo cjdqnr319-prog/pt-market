@@ -233,8 +233,9 @@ function showJoin(msg) {
   $('#jConn').textContent = '연결: ' + RT.label();
   const saved = JSON.parse(localStorage.getItem('ptm:student') || 'null');
   $('#jCode').value = qs.get('room') || (saved && saved.code) || '';
+  $('#jStep2').classList.add('hidden'); joinSel = null;
   $('#jErr').textContent = msg || '';
-  if ($('#jCode').value) findRoom();
+  if ($('#jCode').value) findRoom(); else $('#jCode').focus();
 }
 async function findRoom() {
   const code = $('#jCode').value.trim();
@@ -242,6 +243,8 @@ async function findRoom() {
   if (!code) return;
   joinDb = RT.connect(code);
   if (!(await joinDb.exists())) { $('#jErr').textContent = '방을 찾을 수 없어요. 코드를 확인하세요.'; $('#jStep2').classList.add('hidden'); return; }
+  const meta = await joinDb.get('meta');
+  if (meta && meta.closed) { $('#jErr').textContent = `방 ${code}은(는) 닫혔어요. 전자칠판의 새 방 코드를 입력하세요.`; $('#jStep2').classList.add('hidden'); $('#jCode').value = ''; $('#jCode').focus(); return; }
   $('#jStep2').classList.remove('hidden');
   if (joinUnsub) joinUnsub();
   joinUnsub = joinDb.on(d => drawGroupPick(d || {}));
@@ -286,6 +289,8 @@ async function autoJoin() {
   try {
     const d = RT.connect(saved.code);
     if (!(await d.exists())) return showJoin();
+    const meta = await d.get('meta');
+    if (meta && meta.closed) { localStorage.removeItem('ptm:student'); return showJoin('선생님이 새 방을 열었어요. 새 방 코드로 입장하세요.'); }
     const cur = await d.get(`groups/${saved.g}`);
     if (!cur || cur.pin !== saved.pin) return showJoin();
     enter(d, saved);
@@ -298,6 +303,16 @@ function enter(d, who) {
   if (unsub) unsub();
   unsub = db.on(v => { prevRoom = room; room = v || {}; onRoom(); render(true); });
   if (!window._loop) window._loop = setInterval(() => render(false), 200);
+}
+
+// 방 나가기 → 입장 화면 (저장된 로그인 삭제)
+function leaveRoom(msg) {
+  localStorage.removeItem('ptm:student');
+  if (unsub) { unsub(); unsub = null; }
+  me = null; db = null; room = {}; prevRoom = {}; ovSig = '';
+  $('#ov').innerHTML = '';
+  const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u);
+  showJoin(msg);
 }
 
 // ───────────────────────── 오프라인 1인 모드
@@ -395,7 +410,8 @@ function patch(box, items) {
 function render(force) {
   if (!db || !me) return;
   const st = room.state || {};
-  if (room.meta && !(room.groups && room.groups[me.g])) { if (!SOLO) { localStorage.removeItem('ptm:student'); if (unsub) unsub(); me = null; return showJoin('선생님이 모둠을 초기화했어요. 다시 입장하세요.'); } }
+  if (!SOLO && room.meta && room.meta.closed) return leaveRoom('선생님이 새 방을 열었어요. 전자칠판의 새 방 코드로 입장하세요.');
+  if (room.meta && !(room.groups && room.groups[me.g])) { if (!SOLO) return leaveRoom('선생님이 모둠을 초기화했어요. 다시 입장하세요.'); }
   const c = ctxNow();
   notify(c);
   renderHeader(c);
@@ -417,7 +433,8 @@ function renderHeader(c) {
   const hr = `<div class="co"><span class="dot"></span><span>${G.no}모둠 ${esc(name)}</span></div>
     <div class="kv"><small>고객 별점</small><b class="star">★${E.fmtStar(tot.shownStars)}</b><small>배송료 ×${mult.toFixed(1)}</small></div>
     <div class="kv"><small>${R && R.tutorial ? '연습 이익' : '누적 이익'}</small><b class="num ${(R && R.tutorial ? today : tot.cash) < 0 ? 'bad' : ''}">${E.fmtSigned(R && R.tutorial ? today : tot.cash)}</b><small>오늘 ${E.fmtSigned(today)}</small></div>
-    <div class="clk"><b class="num">${R ? fmt(clock) : '--:--'}</b><small>${R ? esc(R.name) + (R.snow ? ' ❄ 폭설' : '') : '대기 중'}${clock >= 22 && R ? ' · 출발 마감' : ''}</small></div>`;
+    <div class="clk"><b class="num">${R ? fmt(clock) : '--:--'}</b><small>${R ? esc(R.name) + (R.snow ? ' ❄ 폭설' : '') : '대기 중'}${clock >= 22 && R ? ' · 출발 마감' : ''}</small></div>
+    ${SOLO ? '' : `<button class="btn sm ghost" data-act="leave" title="다른 방으로 입장">🚪 방 ${esc(me.code)} 나가기</button>`}`;
   if ($('#hRow')._h !== hr) { $('#hRow').innerHTML = hr; $('#hRow')._h = hr; }
   let res = '';
   if (gr) {
@@ -787,6 +804,10 @@ const act = {
     UI.sfx('take'); UI.toast(`⭐ ${price}에 입찰했어요`, { color: '#fbbf24' });
   },
   quote(id) { showQuote[id] = !showQuote[id]; render(true); },
+  async leave() {
+    if (!(await UI.confirm('🚪 방 나가기', `방 <b>${esc(me.code)}</b>에서 나가고 다른 방 코드로 입장할까요?<br><span class="dim">이 방의 기록은 그대로 남고, 같은 PIN으로 다시 들어올 수 있어요.</span>`, '나가기'))) return;
+    leaveRoom('');
+  },
   async memo() {
     const t = ($('#memo') && $('#memo').value.trim()) || '';
     if (t.length < 5) return UI.toast('조금 더 자세히 써 주세요 (5자 이상)');
