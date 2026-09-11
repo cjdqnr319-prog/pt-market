@@ -103,6 +103,22 @@
   .mb:disabled { opacity: .38; cursor: not-allowed; }
   .mb.best { border-color: var(--accent); }
   .mb.danger { border-color: rgba(239,68,68,.45); }
+  /* 배송 진행 */
+  .tr { background: var(--panel); border: 1.5px solid rgba(59,130,246,.55); border-radius: 14px; padding: 10px 12px 9px; margin-bottom: 8px; animation: pop .4s; }
+  .tr.ret { border-color: var(--line2); }
+  .tr.risk { border-color: var(--bad); }
+  .tr .trh { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font-size: 14px; }
+  .tr .trh .ic { font-size: 20px; line-height: 1; }
+  .tr .trh b { font-size: 17px; }
+  .tr .trh .eta { margin-left: auto; font-weight: 800; color: #93c5fd; white-space: nowrap; }
+  .tr .trh .eta.risk { color: #fca5a5; }
+  .tr .bar { position: relative; height: 14px; margin: 9px 0 4px; background: var(--bg2); border: 1px solid var(--line); border-radius: 99px; }
+  .tr .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 99px; transition: width .2s linear; }
+  .tr.ret .bar .fill { background: linear-gradient(90deg, #475569, #94a3b8); }
+  .tr .bar .mk { position: absolute; top: 50%; transform: translate(-50%, -52%); font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 2px #000); transition: left .2s linear; }
+  .tr .bar .dl { position: absolute; top: -5px; bottom: -5px; width: 3px; background: var(--bad); border-radius: 2px; transform: translateX(-50%); }
+  .tr .bar .dl::after { content: '⏰'; position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 12px; }
+  .tr .trf { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
   /* 운송 현황 */
   .lg { display: flex; gap: 8px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; font-size: 13.5px; }
   .lg .ic { font-size: 20px; line-height: 1; }
@@ -164,9 +180,11 @@
       <div id="tips"></div>
       <h3 class="sec">🚚 우리 트럭 <small>같은 목적지 합적 ≤10톤 · [출발] 누르면 지도로 출발</small></h3>
       <div class="trow" id="trucks"></div>
+      <h3 class="sec">🛰️ 배송 진행 <small id="trSum">지금 움직이는 화물</small></h3>
+      <div id="transit"></div>
       <h3 class="sec">📥 처리할 주문 <small id="actSum"></small></h3>
       <div id="olist"></div>
-      <h3 class="sec">📜 운송 현황</h3>
+      <h3 class="sec">📜 운송 기록 <small>도착·포기·보관 결과</small></h3>
       <div id="log"></div>
     </section>
   </div>
@@ -474,10 +492,13 @@ function quoteList(o, c) {
 // 배차판
 function renderDesk(c) {
   const { R, rid, clock, running, gr } = c;
-  if (!gr) { patch($('#trucks'), []); patch($('#olist'), []); patch($('#log'), []); $('#tips').innerHTML = ''; return; }
+  if (!gr) { patch($('#trucks'), []); patch($('#transit'), []); patch($('#olist'), []); patch($('#log'), []); $('#tips').innerHTML = ''; return; }
   const tips = R.tutorial ? `<div class="tips">🎓 <b>튜토리얼</b> — ① 왼쪽 시장에서 <b>[수락]</b> ② 주문 카드에서 <b>트럭에 싣기</b>(같은 목적지는 합적!) 또는 <b>철도·선박·항공 위탁</b> ③ 트럭 카드의 <b>[출발]</b>. 마감 전에 도착하면 ★+0.1!</div>` : '';
   if ($('#tips')._h !== tips) { $('#tips').innerHTML = tips; $('#tips')._h = tips; }
   patch($('#trucks'), ['t1', 't2'].map(k => ({ key: k, cls: 'tk ' + gr.trucks[k].status, html: truckHtml(k, gr, clock, running) })));
+  const tr = transitItems(gr, clock);
+  $('#trSum').textContent = tr.length ? `${tr.length}편 이동 중` : '지금 움직이는 화물 없음';
+  patch($('#transit'), tr.length ? tr : [{ key: 'e', html: '<div class="empty">출발한 화물이 여기에 진행 바로 표시돼요</div>' }]);
   const act = gr.active.map(o => ({ key: o.id, cls: 'od' + (o.deadline - clock < 2 ? ' hot' : ''), html: orderHtml(o, gr, clock, running, R) }));
   if (!act.length) act.push({ key: 'e', html: `<div class="empty">${gr.loaded.length ? '트럭에 실린 화물은 위 트럭 카드에서 [출발]하세요' : '처리할 주문이 없어요. 시장에서 수락하세요!'}</div>` });
   patch($('#olist'), act);
@@ -562,20 +583,60 @@ function orderHtml(o, gr, clock, running, R) {
   return h + '</div>';
 }
 
+// 이동 중인 배차 → 진행 바 카드
+function transitItems(gr, clock) {
+  const items = [];
+  gr.disps.forEach(d => {
+    const isTruck = d.mode === 'truck';
+    const end = isTruck ? d.effRet : d.effArrive;
+    if (clock < d.depart - EPS || clock >= end - EPS) return;
+    const M = MD.MODES[d.mode];
+    const ic = isTruck ? (d.truck === 't2' ? '❄' : '🚚') : M.icon;
+    const names = d.oids.map(id => esc(gr.byId[id].name)).join(', ');
+    const returning = isTruck && clock >= d.effArrive - EPS;
+    const dlMax = Math.max(...d.oids.map(id => gr.byId[id].deadline));
+    const dlMin = Math.min(...d.oids.map(id => gr.byId[id].deadline));
+    const risk = !returning && d.effArrive > dlMin + EPS;
+    let frac, left, right, eta, mk = ic, fill;
+    if (returning) {
+      frac = (clock - d.effArrive) / Math.max(1e-6, d.effRet - d.effArrive);
+      left = `도착 ${fmt(d.effArrive)} ✓`; right = `창고 복귀 ${fmt(d.effRet)}`;
+      eta = `↩ 복귀 중 · ${E.fmtDur(d.effRet - clock)} 후 재배차 가능`;
+    } else {
+      frac = E.dispProgress(d, clock);
+      left = `출발 ${fmt(d.depart)}`; right = `${esc(d.dest)} 도착 ${fmt(d.effArrive)}`;
+      eta = `${risk ? '⚠ 지연 예상 · ' : ''}도착까지 ${E.fmtDur(d.effArrive - clock)}${d.delayed ? ` (🔧 +${d.delayed}h)` : ''}`;
+    }
+    const pct = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1);
+    // 마감 표시(출발→도착 구간 안에 있을 때만)
+    let dl = '';
+    if (!returning) {
+      const p = (dlMin - d.depart) / Math.max(1e-6, d.effArrive - d.depart);
+      if (p > 0.02 && p < 0.98) dl = `<span class="dl" style="left:${(p * 100).toFixed(1)}%" title="마감 ${fmt(dlMin)}"></span>`;
+    }
+    items.push({ key: d.id, cls: 'tr' + (returning ? ' ret' : '') + (risk ? ' risk' : ''), html:
+      `<div class="trh"><span class="ic">${ic}</span><b>${esc(d.dest)}행</b><span class="muted">${M.label}${isTruck ? ` · ${d.oids.length}건 ${d.tons}톤` : ''}</span><span class="eta ${risk ? 'risk' : ''}">${eta}</span></div>
+       <div class="muted" style="font-size:13px">${names}${!returning && dlMax !== dlMin ? ` <span class="dim">(마감 ${fmt(dlMin)}~${fmt(dlMax)})</span>` : !returning ? ` <span class="dim">(마감 ${fmt(dlMin)})</span>` : ''}</div>
+       <div class="bar"><div class="fill" style="width:${pct}%"></div>${dl}<span class="mk" style="left:${pct}%">${mk}</span></div>
+       <div class="trf"><span>${left}</span><span>${right}</span></div>` });
+  });
+  return items;
+}
+
 function logItems(gr, clock) {
   const items = [];
   gr.disps.slice().reverse().forEach(d => {
+    if (clock < d.effArrive - EPS) return; // 이동 중인 것은 위 '배송 진행'에
     const M = MD.MODES[d.mode];
     const names = d.oids.map(id => esc(gr.byId[id].name));
     let rs;
-    if (clock < d.effArrive - EPS) rs = `<span style="color:#93c5fd">운송 중 · 도착 ${fmt(d.effArrive)}</span>${d.delayed ? ' <span class="bad">🔧+' + d.delayed + 'h</span>' : ''}`;
-    else rs = d.oids.map(id => { const e = gr.events.find(x => x.o && x.o.id === id && (x.type === 'ontime' || x.type === 'late')); return e ? (e.type === 'ontime' ? `<span class="good">✅ +${e.amt}</span>` : `<span class="bad">⚠ 지연 ${Math.ceil(e.lateH - EPS)}h +${e.amt}</span>`) : ''; }).join('<br>');
+    rs = d.oids.map(id => { const e = gr.events.find(x => x.o && x.o.id === id && (x.type === 'ontime' || x.type === 'late')); return e ? (e.type === 'ontime' ? `<span class="good">✅ +${e.amt}</span>` : `<span class="bad">⚠ 지연 ${Math.ceil(e.lateH - EPS)}h +${e.amt}</span>`) : ''; }).join('<br>');
     items.push({ key: d.id, cls: 'lg', html: `<span class="ic">${d.mode === 'truck' && d.truck === 't2' ? '❄' : M.icon}</span><div class="tx"><b>${esc(d.dest)}</b> · ${names.join(', ')}<br><span class="muted">${M.label}${d.mode === 'truck' ? (d.truck === 't1' ? '(일반)' : '(냉장)') : ''} · 출발 ${fmt(d.depart)} → 도착 ${fmt(d.effArrive)} · 비용 ${d.cost}</span></div><div class="rs">${rs}</div>` });
   });
   gr.orders.filter(o => o.st === 'abandoned' || o.st === 'stored').forEach(o => {
     items.push({ key: 'x' + o.id, cls: 'lg', html: `<span class="ic">${o.st === 'stored' ? '📦' : '❌'}</span><div class="tx"><b>${esc(o.dest)}</b> · ${esc(o.name)}<br><span class="muted">${o.st === 'stored' ? '보관(이월) — 내일 이어서 처리' : '수락 후 포기'} · ${fmt(o.rec.at)}</span></div><div class="rs ${o.st === 'stored' ? '' : 'bad'}">${o.st === 'stored' ? '−' + MD.STORE_COST : '−' + Math.round(o.price * MD.ABANDON_RATE) + ' ★−1'}</div>` });
   });
-  if (!items.length) items.push({ key: 'e', html: '<div class="empty">아직 출발한 화물이 없어요</div>' });
+  if (!items.length) items.push({ key: 'e', html: '<div class="empty">아직 도착한 화물이 없어요</div>' });
   return items;
 }
 

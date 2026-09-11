@@ -57,6 +57,12 @@
   .mc .own { position: absolute; right: 7px; top: 7px; background: var(--gc); color: #0a0e13; font-weight: 900; font-size: 12px; padding: 2px 8px; border-radius: 99px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mc .stamp { position: absolute; right: 7px; top: 8px; font-size: 12px; font-weight: 800; color: var(--muted); }
   .mc .cd { font-size: 26px; font-weight: 900; color: var(--vip); }
+  .mc .prog { position: relative; height: 7px; background: rgba(0,0,0,.4); border-radius: 99px; overflow: hidden; margin-top: 5px; }
+  .mc .prog i { display: block; height: 100%; background: var(--gc); border-radius: 99px; transition: width .25s linear; }
+  .mc .ps { font-size: 12.5px; font-weight: 800; margin-top: 3px; display: flex; justify-content: space-between; }
+  .mc.delivered { border-color: var(--good); }
+  .mc.late { border-color: var(--bad); }
+  .mc.dropped { opacity: .55; }
   .mc .bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
   .mc .bars i { flex: 1; background: var(--vip); border-radius: 3px 3px 0 0; opacity: .8; min-width: 6px; transition: height .3s; }
   #mapWrap { border-left: 1px solid var(--line); position: relative; min-height: 0; background: #0b1119; }
@@ -315,9 +321,22 @@ function renderBanner(R, clock) {
   $('#banner').innerHTML = ps.map(p => `<div class="pb"><span class="ic">${p.icon}</span><span>${esc(p.title)} <small>~${E.fmtTime(p.until)}</small><br><small>${esc(p.desc)}</small></span></div>`).join('');
 }
 
-function cardHtml(o, s, clock, R) {
+function progressHtml(o, ps) {
+  if (!ps) return '';
+  const ic = ps.mode === 'truck' ? (ps.truck === 't2' ? '❄' : '🚚') : ps.mode ? MD.MODES[ps.mode].icon : '';
+  switch (ps.st) {
+    case 'transit': return `<div class="prog"><i style="width:${(ps.frac * 100).toFixed(1)}%"></i></div><div class="ps"><span>${ic} 배송 중</span><span class="num">도착 ${E.fmtTime(ps.arrive)}</span></div>`;
+    case 'delivered': return `<div class="prog"><i style="width:100%;background:var(--good)"></i></div><div class="ps good"><span>✅ 정시 배송</span><span class="num">${E.fmtTime(ps.arrive)}</span></div>`;
+    case 'late': return `<div class="prog"><i style="width:100%;background:var(--bad)"></i></div><div class="ps bad"><span>⚠ 지연 도착</span><span class="num">${E.fmtTime(ps.arrive)}</span></div>`;
+    case 'abandoned': return `<div class="ps bad"><span>❌ 포기</span></div>`;
+    case 'stored': return `<div class="ps muted"><span>📦 보관(이월)</span></div>`;
+    case 'loaded': return `<div class="prog"><i style="width:0"></i></div><div class="ps muted"><span>${ps.truck === 't2' ? '❄' : '🚚'} 적재 중 · 출발 대기</span></div>`;
+    default: return `<div class="prog"><i style="width:0"></i></div><div class="ps muted"><span>⏳ 배차 대기</span></div>`;
+  }
+}
+function cardHtml(o, s, clock, R, ps) {
   const st = room.state || {};
-  let top = '', foot = '';
+  let top = '', foot = '', tail = '';
   const left = o.deadline - clock;
   if (s === 'open') {
     top = '';
@@ -334,13 +353,14 @@ function cardHtml(o, s, clock, R) {
   } else if (s === 'taken') {
     top = `<span class="own">${esc(UI.gName(room, o.owner))}</span>`;
     foot = o.vipWin ? `<span>⭐ 낙찰 <b class="num">${o.price}</b></span><span class="muted num">/${o.fee}</span>` : `<span class="muted">⏰ ${E.fmtTime(o.deadline)}</span><span class="fee num">${o.fee}</span>`;
+    tail = progressHtml(o, ps);
   } else if (s === 'cancelled') {
     top = `<span class="stamp">📞 취소</span>`; foot = `<span></span><span class="fee num">${o.fee}</span>`;
   } else {
     top = `<span class="stamp">유찰</span>`; foot = `<span></span><span class="fee num">${o.fee}</span>`;
   }
   return `${top}<div class="l1"><span class="dest">${esc(o.dest)}</span><span class="ton">${o.ton}톤</span></div>
-    <div class="nm">${esc(o.name)}</div><div class="tg">${UI.tags(o)}</div><div class="l3">${foot}</div>`;
+    <div class="nm">${esc(o.name)}</div><div class="tg">${UI.tags(o)}</div><div class="l3">${foot}</div>${tail}`;
 }
 
 function renderMarket(R, clock, fin) {
@@ -351,14 +371,17 @@ function renderMarket(R, clock, fin) {
   const cnt = { open: 0, taken: 0, expired: 0, cancelled: 0, bidding: 0, judging: 0 };
   all.forEach(o => { const s = E.marketStatus(o, clock, R, fin); if (s !== 'hidden') { vis.push([o, s]); cnt[s] = (cnt[s] || 0) + 1; } });
   vis.sort((a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
-  $('#msum').textContent = `등장 ${vis.length}/${all.length} · 열림 ${cnt.open + cnt.bidding + cnt.judging} · 수락 ${cnt.taken} · 유찰 ${cnt.expired + cnt.cancelled}`;
+  const psMap = cnt.taken ? E.ownerStatus(room, R.id, fin ? MD.TIME.CLOSE : clock, fin) : {};
+  const delivered = Object.values(psMap).filter(p => p.st === 'delivered').length, lateN = Object.values(psMap).filter(p => p.st === 'late').length, transit = Object.values(psMap).filter(p => p.st === 'transit').length;
+  $('#msum').textContent = `등장 ${vis.length}/${all.length} · 열림 ${cnt.open + cnt.bidding + cnt.judging} · 수락 ${cnt.taken} (운송 중 ${transit} · 도착 ${delivered}${lateN ? ` · 지연 ${lateN}` : ''}) · 유찰 ${cnt.expired + cnt.cancelled}`;
   let newOne = false;
   const keep = new Set();
   vis.forEach(([o, s], i) => {
     keep.add(o.id);
     let el = cards.get(o.id);
-    const html = cardHtml(o, s, clock, R);
-    const cls = 'mc ' + s;
+    const ps = psMap[o.id];
+    const html = cardHtml(o, s, clock, R, ps);
+    const cls = 'mc ' + s + (ps && (ps.st === 'delivered' || ps.st === 'late') ? ' ' + ps.st : ps && ps.st === 'abandoned' ? ' dropped' : '');
     if (!el) {
       el = document.createElement('div');
       cards.set(o.id, el);

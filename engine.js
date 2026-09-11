@@ -246,6 +246,32 @@
     };
   };
 
+  // 배차 진행률 (출발→도착 0~1)
+  E.dispProgress = (d, clock) => {
+    const total = d.effArrive - d.depart;
+    return Math.max(0, Math.min(1, total > 0 ? (clock - d.depart) / total : 1));
+  };
+  // 시장판용: 주문별 처리 상태 {oid: {st, frac, arrive, mode, truck}}
+  //  st: active(배차 대기) | loaded(적재 중) | transit(운송 중) | delivered | late | abandoned | stored
+  E.ownerStatus = (room, rid, clock, finished) => {
+    const map = {};
+    MD.GROUPS.forEach(G => {
+      if (!(room.groups && room.groups[G.id])) return;
+      const gr = E.groupRound({ room, g: G.id, rid, clock, finished });
+      gr.orders.forEach(o => {
+        const s = { st: o.st };
+        if (o.st === 'dispatched') {
+          const d = o.disp;
+          s.mode = d.mode; s.truck = d.truck; s.arrive = d.effArrive; s.depart = d.depart;
+          if (clock < d.effArrive) { s.st = 'transit'; s.frac = E.dispProgress(d, clock); }
+          else s.st = d.effArrive > o.deadline + EPS ? 'late' : 'delivered';
+        }
+        map[o.id] = s;
+      });
+    });
+    return map;
+  };
+
   // 라운드 완료 여부
   E.isFinished = (room, rid) => !!(room.state && room.state.done && room.state.done[rid]) ||
     (room.state && room.state.round === rid && ['settle', 'final'].includes(room.state.phase));
