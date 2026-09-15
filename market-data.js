@@ -43,7 +43,7 @@
   const STORE_COST = 20;          // 보관(이월)
   const ABANDON_RATE = 0.3;       // 수락 후 포기 위약 30%
   const LATE_RATE = 0.1;          // 지연 위약 배송료 10%/h
-  const ACTIVE_LIMIT = 4;         // 동시 처리 한도
+  const ACTIVE_LIMIT = 5;         // 동시 처리 한도 (수락했지만 아직 출발 안 한 주문)
 
   // 무게계수
   function weightFactor(mode, ton) {
@@ -102,8 +102,8 @@
     },
     {
       id: 'R1', name: 'R1 평일', short: '평일', snow: false,
-      secPerHour: 20, ppl: 6, budget: 800, storage: true, popupTimes: [10, 14.5],
-      story: '평범한 하루. 인력 여유가 있으니 합적·트럭 회전을 잘하는 회사가 앞선다.',
+      secPerHour: 20, ppl: 8, budget: 1100, storage: true, popupTimes: [10, 14.5],
+      story: '평범한 하루. 주문은 넘치지만 인력(편수)은 8명 — 다 잡을 수 없다. 합적·트럭 회전을 잘하는 회사가 앞선다.',
       orders: [
         {t_in: 6, name: "급식 냉동만두", dest: "대전", ton: 3, cold: true, haz: false, deadline: 12, fee: 200, vip: false, best: "truck", best_profit: 135},
         {t_in: 6, name: "조선소 강판 40톤", dest: "부산", ton: 40, cold: false, haz: false, deadline: 30, fee: 560, vip: false, best: "rail", best_profit: 110},
@@ -139,8 +139,8 @@
     },
     {
       id: 'R2', name: 'R2 명절 전날', short: '명절 전날', snow: false,
-      secPerHour: 20, ppl: 6, budget: 900, storage: true, popupTimes: [9.5, 13.5],
-      story: '주문 40건! 인력(편수)보다 주문이 많다 — 다 못 잡는다. 선택과 포기.',
+      secPerHour: 20, ppl: 8, budget: 1200, storage: true, popupTimes: [9.5, 13.5],
+      story: '명절 물량 폭주! 냉장 선물세트·컨테이너·VIP까지 — 이익 높은 주문만 골라 잡는 선택과 포기의 날.',
       orders: [
         {t_in: 6, name: "한우 세트", dest: "대전", ton: 2, cold: true, haz: false, deadline: 13, fee: 260, vip: false, best: "truck", best_profit: 195},
         {t_in: 6, name: "수출 컨테이너 60톤", dest: "부산", ton: 60, cold: false, haz: false, deadline: 36, fee: 720, vip: false, best: "sea", best_profit: 470},
@@ -186,7 +186,7 @@
     },
     {
       id: 'R3', name: 'R3 폭설', short: '폭설', snow: true,
-      secPerHour: 20, ppl: 7, budget: 1000, storage: false, popupTimes: [10, 15],
+      secPerHour: 20, ppl: 9, budget: 1300, storage: false, popupTimes: [10, 15],
       story: '❄ 폭설! 트럭 속도 40km/h, 항공 결항. 트럭 회전이 느려져 시간이 병목 — 철도의 가치 급등.',
       orders: [
         {t_in: 6, name: "생수 9톤", dest: "서울", ton: 9, cold: false, haz: false, deadline: 16, fee: 220, vip: false, best: "truck", best_profit: 170},
@@ -222,6 +222,56 @@
       ],
     },
   ];
+
+  // ── 추가 주문 생성기 (시장 물량 ×3)
+  //  원본 주문(검증본)은 그대로 두고, 같은 요금 체계의 주문을 라운드마다 결정적으로(시드 고정) 덧붙인다.
+  //  → 물량이 많아 "빨리 누르는 게임"이 아니라 "무엇을 고를지"가 승부가 된다.
+  const EXTRA = { R0: 6, R1: 60, R2: 80, R3: 60 };
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const SHORT_NAMES = ['문구류', '음료 페트', '편의점 음료', '택배 합포장', '공장 부품', '학교 급식 재료', '사무용품', '마트 과자', '의류 박스', '가전 소형', '생수', '화장품 박스', '서점 도서', '약국 의약품', '카페 소모품'];
+  const COLD_NAMES = ['냉동 만두', '아이스크림', '냉장 우유', '횟감 수산물', '냉동 피자', '신선 채소', '한우 세트', '냉장 도시락'];
+  const LONG = [ // 중·장거리 (트럭 가능) — 목적지별 [톤 범위, 기준 배송료(1톤당 가산 8)]
+    { dest: '강릉', names: ['리조트 식자재', '스키장 용품', '해수욕장 물품', '펜션 침구'], ton: [3, 8], base: 240, coldBase: 320 },
+    { dest: '대구', names: ['섬유 원단', '방한용품', '안경 부품', '떡 세트'], ton: [2, 8], base: 220, coldBase: 265 },
+    { dest: '광주', names: ['마트 라면', '김치 세트', '굴비 세트', '자동차 부품'], ton: [3, 8], base: 270, coldBase: 280 },
+    { dest: '목포', names: ['수산시장 얼음', '김 세트', '조선 자재', '건어물'], ton: [4, 8], base: 260, coldBase: 280 },
+  ];
+  const HEAVY = [ // 10톤 초과 → 철도/선박
+    { dest: '대전', names: ['쌀', '난방유', '시멘트', '비료'], ton: [15, 30], fee: t => 240 + t * 4.5 },
+    { dest: '부산', names: ['수출 컨테이너', '강판', '자동차 부품', '기계 설비'], ton: [20, 60], fee: t => 420 + t * 4.5 },
+    { dest: '제주', names: ['마트 생필품', '호텔 침구', '건축 자재', '관광 기념품'], ton: [1, 12], fee: t => 230 + t * 18 },
+  ];
+  function extraOrders(R, n) {
+    const r = rng(R.id.charCodeAt(1) * 7919 + n);
+    const pick = a => a[Math.floor(r() * a.length)];
+    const between = (a, b) => a + Math.floor(r() * (b - a + 1));
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const t_in = between(6, 17);
+      const kind = r();
+      let o;
+      if (kind < 0.62) {           // 단거리 일반 (합적 대상)
+        const dest = pick(['서울', '서울', '서울', '인천', '인천', '대전', '대전']);
+        const ton = between(1, 6);
+        const base = { '서울': 110, '인천': 100, '대전': 130 }[dest];
+        o = { name: `${pick(SHORT_NAMES)} ${ton}톤`, dest, ton, cold: false, fee: base + ton * 8, deadline: t_in + between(5, 9) };
+      } else if (kind < 0.76) {    // 단거리 냉장 (냉장 트럭 1대 쟁탈)
+        const dest = pick(['서울', '인천', '대전', '대전']);
+        const ton = between(1, 4);
+        const base = { '서울': 150, '인천': 140, '대전': 165 }[dest];
+        o = { name: `${pick(COLD_NAMES)} ${ton}톤`, dest, ton, cold: true, fee: base + ton * 10, deadline: t_in + between(5, 8) };
+      } else if (kind < 0.92) {    // 중·장거리
+        const L = pick(LONG); const ton = between(L.ton[0], L.ton[1]); const cold = r() < 0.3;
+        o = { name: `${pick(L.names)} ${ton}톤`, dest: L.dest, ton, cold, fee: (cold ? L.coldBase : L.base) + ton * 8, deadline: t_in + between(9, 13) };
+      } else {                     // 대량·원거리 (철도·선박)
+        const H = pick(HEAVY); const ton = between(H.ton[0], H.ton[1]);
+        o = { name: `${pick(H.names)} ${ton}톤`, dest: H.dest, ton, cold: false, fee: Math.round(H.fee(ton)), deadline: t_in + (H.dest === '대전' ? between(10, 14) : between(18, 26)) };
+      }
+      out.push(Object.assign({ t_in, haz: false, vip: false }, o, { extra: true }));
+    }
+    return out.sort((a, b) => a.t_in - b.t_in);
+  }
+  ROUNDS.forEach(R => { if (EXTRA[R.id]) R.orders.push(...extraOrders(R, EXTRA[R.id])); R.orders.sort((a, b) => a.t_in - b.t_in || (a.vip ? -1 : 0)); });
 
   // 주문 id 부여 · 트럭 편성 라벨
   ROUNDS.forEach(r => { r.fleet = r.fleet || FLEET_DEFAULT; r.trucks = fleetLabel(r.fleet); });

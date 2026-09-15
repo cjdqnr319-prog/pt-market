@@ -51,8 +51,11 @@
   #desk { overflow: auto; padding: 10px 12px 30px; }
   h3.sec { margin: 6px 2px 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
   h3.sec small { color: var(--muted); font-weight: 600; }
+  .sortbar { display: flex; gap: 4px; margin: -2px 0 8px; }
+  .sortbar button { flex: 1; border: 1px solid var(--line2); background: var(--panel); border-radius: 8px; padding: 6px 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .sortbar button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent2); }
   /* 시장 카드 */
-  .oc { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 12px; padding: 10px 11px; margin-bottom: 8px; animation: pop .35s; }
+  .oc { background: var(--panel); border: 1.5px solid var(--line2); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; animation: pop .35s; }
   .oc.can { border-color: var(--accent); }
   .oc.vipc { border-color: var(--vip); background: linear-gradient(160deg, rgba(251,191,36,.16), var(--panel) 70%); }
   .oc .r1 { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
@@ -62,7 +65,7 @@
   .oc .r3 { font-size: 13px; color: var(--muted); }
   .oc .hint { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
   .oc .act { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
-  .oc .act .btn { flex: 1; min-height: 44px; font-size: 16px; }
+  .oc .act .btn { flex: 1; min-height: 40px; font-size: 15px; }
   .why { font-size: 13px; color: #fca5a5; }
   .urgent { color: var(--bad) !important; font-weight: 800; animation: blink 1s infinite; }
   .cd { font-size: 22px; font-weight: 900; color: var(--vip); }
@@ -173,6 +176,7 @@
   <div class="body">
     <section id="mkt">
       <h3 class="sec">📋 시장 <small id="mktSum"></small></h3>
+      <div class="sortbar" id="sortbar"><button class="on" data-sort="new">최신</button><button data-sort="dest">목적지</button><button data-sort="deadline">마감</button><button data-sort="profit">이익</button></div>
       <div id="mlist"></div>
       <div class="recent" id="recent"></div>
     </section>
@@ -208,6 +212,7 @@ const EPS = 1e-6;
 let db = null, room = {}, prevRoom = {}, me = null, host = null, unsub = null;
 let hold = false;
 const bidDraft = {}, showQuote = {};
+let mktSort = 'new';
 const seen = { rid: null, init: false, vis: new Set(), ev: new Set(), pops: new Set(), trucks: {} };
 document.addEventListener('pointerdown', () => { hold = true; UI.unlockAudio(); }, true);
 document.addEventListener('pointerup', () => setTimeout(() => { hold = false; }, 120), true);
@@ -465,9 +470,15 @@ function renderMarket(c) {
   const list = E.marketList(room, rid).filter(o => !o.carried);
   const items = [];
   const vis = list.map(o => [o, E.marketStatus(o, clock, R, fin)]).filter(([, s]) => ['open', 'bidding', 'judging'].includes(s));
-  vis.sort((a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
+  const chks = {};
+  vis.forEach(([o]) => { chks[o.id] = running ? E.canAccept(room, me.g, rid, o, clock) : { ok: false, why: '일시정지' }; });
+  const gain = o => { const c = chks[o.id]; return c.ok ? Math.round(o.fee * mult) - c.best.cost : -9999; };
+  const newest = (a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0));
+  const vipFirst = (a, b) => (b[1] !== 'open') - (a[1] !== 'open');
+  const cmp = { new: newest, dest: (a, b) => a[0].dest.localeCompare(b[0].dest, 'ko') || a[0].deadline - b[0].deadline, deadline: (a, b) => a[0].deadline - b[0].deadline || newest(a, b), profit: (a, b) => gain(b[0]) - gain(a[0]) || newest(a, b) }[mktSort] || newest;
+  vis.sort((a, b) => vipFirst(a, b) || cmp(a, b));
   vis.forEach(([o, s]) => {
-    const chk = running ? E.canAccept(room, me.g, rid, o, clock) : { ok: false, why: '일시정지' };
+    const chk = chks[o.id];
     const left = o.deadline - clock;
     const dl = `⏰ 마감 ${fmt(o.deadline)} <span class="${left < 2 ? 'urgent' : ''}">${left < 24 ? '· ' + E.fmtDur(left) + ' 남음' : '· 내일'}</span>`;
     const head = `<div class="r1"><span class="dest">${esc(o.dest)}</span><b>${o.ton}톤</b>${UI.tags(o)}<span class="fee num">${s === 'open' ? o.fee : '≤' + o.fee}</span></div><div class="nm">${esc(o.name)}</div><div class="r3">${dl}</div>`;
@@ -675,7 +686,7 @@ function renderOverlay(c) {
 function waitHtml() {
   const G = MD.groupById(me.g);
   return `<div class="ov"><div class="in" style="text-align:center;padding-top:10vh"><div style="font-size:80px">🎛️</div><h1>${G.no}모둠 ${esc((room.groups[me.g] || {}).name || '')} 입장 완료!</h1><div class="sub">선생님이 곧 하루를 준비합니다. 전자칠판을 보세요.</div>
-    <div class="card" style="text-align:left;line-height:1.9">🚚 트럭 일반2·냉장1 — 같은 목적지는 합적(≤10톤), 왕복 후 다시 사용<br>🚆 철도(18시 막차) · 🚢 선박(인력 2명) · ✈️ 항공(≤3톤, 폭설 결항)<br>👷 배차 1편 = 인력 1명 · 📥 동시에 최대 4건까지<br>⭐ VIP는 10초 역경매 — 가장 싸게 부른 회사가 낙찰<br>정시 ★+0.1 · 지연 ★−0.3(+위약 10%/h) · 포기 ★−1(위약 30%)</div>${SOLO ? '<div class="muted">아래 오프라인 바에서 라운드를 고르세요</div>' : ''}</div></div>`;
+    <div class="card" style="text-align:left;line-height:1.9">🚚 트럭 일반2·냉장1 — 같은 목적지는 합적(≤10톤), 왕복 후 다시 사용<br>🚆 철도(18시 막차) · 🚢 선박(인력 2명) · ✈️ 항공(≤3톤, 폭설 결항)<br>👷 배차 1편 = 인력 1명 · 📥 동시에 최대 5건까지<br>⭐ VIP는 10초 역경매 — 가장 싸게 부른 회사가 낙찰<br>정시 ★+0.1 · 지연 ★−0.3(+위약 10%/h) · 포기 ★−1(위약 30%)</div>${SOLO ? '<div class="muted">아래 오프라인 바에서 라운드를 고르세요</div>' : ''}</div></div>`;
 }
 function readyHtml(R, gr) {
   const carried = gr ? gr.orders.filter(o => o.carried) : [];
@@ -824,6 +835,7 @@ document.addEventListener('click', e => {
   const f = act[b.dataset.act];
   if (f) f(b.dataset.id, b.dataset.k, b.dataset.m);
 });
+document.addEventListener('click', e => { const b = e.target.closest('#sortbar [data-sort]'); if (!b) return; mktSort = b.dataset.sort; $$('#sortbar button').forEach(x => x.classList.toggle('on', x === b)); render(true); });
 document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.bid) bidDraft[e.target.dataset.bid] = e.target.value; });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.bid) act.bid(e.target.dataset.bid); });
 

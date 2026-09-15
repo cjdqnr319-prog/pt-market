@@ -370,10 +370,11 @@ function renderMarket(R, clock, fin) {
   const vis = [];
   const cnt = { open: 0, taken: 0, expired: 0, cancelled: 0, bidding: 0, judging: 0 };
   all.forEach(o => { const s = E.marketStatus(o, clock, R, fin); if (s !== 'hidden') { vis.push([o, s]); cnt[s] = (cnt[s] || 0) + 1; } });
-  vis.sort((a, b) => (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
   const psMap = cnt.taken ? E.ownerStatus(room, R.id, fin ? MD.TIME.CLOSE : clock, fin) : {};
   const delivered = Object.values(psMap).filter(p => p.st === 'delivered').length, lateN = Object.values(psMap).filter(p => p.st === 'late').length, transit = Object.values(psMap).filter(p => p.st === 'transit').length;
   $('#msum').textContent = `등장 ${vis.length}/${all.length} · 열림 ${cnt.open + cnt.bidding + cnt.judging} · 수락 ${cnt.taken} (운송 중 ${transit} · 도착 ${delivered}${lateN ? ` · 지연 ${lateN}` : ''}) · 유찰 ${cnt.expired + cnt.cancelled}`;
+  const rank = ([o, s]) => { if (s === 'bidding' || s === 'judging') return 0; if (s === 'open') return 1; if (s === 'taken') { const p = psMap[o.id]; return p && (p.st === 'delivered' || p.st === 'late' || p.st === 'abandoned' || p.st === 'stored') ? 3 : 2; } return 4; };
+  vis.sort((a, b) => rank(a) - rank(b) || (b[0].t_in - a[0].t_in) || ((b[0].seq || 0) - (a[0].seq || 0)));
   let newOne = false;
   const keep = new Set();
   vis.forEach(([o, s], i) => {
@@ -479,7 +480,7 @@ function lobbyHtml() {
           <b>하루 규칙 요약</b><br>
           🚚 트럭 일반2·냉장1 — 같은 목적지 합적(≤10톤), 왕복 후 재사용<br>
           🚆 철도(18시 막차) · 🚢 선박(인력 2) · ✈️ 항공(≤3톤) 위탁<br>
-          👷 배차 1편 = 인력 1명 · 📥 동시 처리 최대 4건 · ⭐VIP는 10초 역경매<br>
+          👷 배차 1편 = 인력 1명 · 📥 동시 처리 최대 5건 · ⭐VIP는 10초 역경매<br>
           정시 ★+0.1 · 지연 ★−0.3(+10%/h) · 포기 ★−1(위약 30%)
         </div>
         <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
